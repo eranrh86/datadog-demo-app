@@ -30,6 +30,9 @@ router.get('/', asyncHandler(async (req, res) => {
 
 // Readiness probe
 router.get('/ready', asyncHandler(async (req, res) => {
+  const tracer = require('dd-trace');
+  const span = tracer.scope().active();
+  
   // Simulate dependency checks
   const checks = {
     database: await checkDatabase(),
@@ -40,11 +43,34 @@ router.get('/ready', asyncHandler(async (req, res) => {
   const allHealthy = Object.values(checks).every(check => check.status === 'healthy');
   const overallStatus = allHealthy ? 'ready' : 'not_ready';
 
-  logger.info('Readiness check performed', {
-    operation: 'readiness_check',
-    overall_status: overallStatus,
-    checks: checks
-  });
+  // Get failed checks for error reporting
+  const failedChecks = Object.entries(checks)
+    .filter(([, check]) => check.status === 'unhealthy')
+    .map(([service, check]) => `${service}: ${check.error}`);
+
+  if (!allHealthy) {
+    // Add error information to the span for better Datadog visibility
+    if (span) {
+      span.setTag('error', true);
+      span.setTag('error.type', 'HealthCheckFailure');
+      span.setTag('error.message', `Service not ready: ${failedChecks.join(', ')}`);
+      span.setTag('error.stack', new Error(`Health check failed: ${failedChecks.join(', ')}`).stack);
+    }
+
+    logger.error('Readiness check failed', {
+      operation: 'readiness_check',
+      overall_status: overallStatus,
+      failed_checks: failedChecks,
+      checks: checks,
+      error: `Service not ready: ${failedChecks.join(', ')}`
+    });
+  } else {
+    logger.info('Readiness check performed', {
+      operation: 'readiness_check',
+      overall_status: overallStatus,
+      checks: checks
+    });
+  }
 
   // Log individual check results
   Object.entries(checks).forEach(([service, check]) => {
@@ -59,7 +85,8 @@ router.get('/ready', asyncHandler(async (req, res) => {
   res.status(statusCode).json({
     status: overallStatus,
     timestamp: new Date().toISOString(),
-    checks: checks
+    checks: checks,
+    ...(failedChecks.length > 0 && { error: `Service not ready: ${failedChecks.join(', ')}` })
   });
 }));
 
