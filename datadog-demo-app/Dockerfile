@@ -1,5 +1,11 @@
 FROM node:18-alpine
 
+# Git metadata arguments for Datadog source code integration
+ARG DD_GIT_REPOSITORY_URL
+ARG DD_GIT_COMMIT_SHA
+ENV DD_GIT_REPOSITORY_URL=${DD_GIT_REPOSITORY_URL}
+ENV DD_GIT_COMMIT_SHA=${DD_GIT_COMMIT_SHA}
+
 # Set working directory
 WORKDIR /app
 
@@ -32,5 +38,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/api/health/live', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
-# Start the application
-CMD ["npm", "start"]
+# Start the application with source maps enabled
+CMD ["node", "--enable-source-maps", "src/app.js"]

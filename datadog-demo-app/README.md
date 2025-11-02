@@ -1,241 +1,358 @@
-# Datadog Demo Application
+# 🐕 Datadog Demo Application
 
-A comprehensive Node.js application designed to demonstrate all key Datadog developer features for your demo presentation.
+<div align="center">
 
-## 🎯 Demo Features Covered
+![Node.js](https://img.shields.io/badge/node.js-18+-green.svg)
+![Express](https://img.shields.io/badge/express-4.x-blue.svg)
+![Datadog](https://img.shields.io/badge/datadog-integrated-purple.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-### 1. **Log Annotations & Volume Gauging**
-- Custom log volume metrics with `logger.gauge()`
-- Request/response logging with structured data
-- Performance metrics and histograms
-- Business logic annotations
+A comprehensive Node.js application showcasing **Datadog's full observability stack** - perfect for demos and learning.
 
-### 2. **Code Insights**
-- **Runtime Errors**: Intentional exceptions for Exception Replay
-- **Security Vulnerabilities**: SQL injection, eval usage, input validation issues
-- **Performance Issues**: Memory leaks, slow queries, cache misses
-- **Flaky Tests**: Timing-dependent and race condition tests
+[Features](#-features) • [Quick Start](#-quick-start) • [Demo Scenarios](#-demo-scenarios) • [Documentation](#-documentation)
 
-### 3. **View in IDE Integration**
-- Proper source mapping and file references
-- Structured logging with file/line information
-- Error stack traces pointing to source code
+</div>
 
-### 4. **Static Code Analysis**
-- ESLint with security plugin configuration
-- Snyk vulnerability scanning
-- Code quality rules and best practices
+---
 
-### 5. **Exception Replay**
-- Detailed error context and stack traces
-- Request/response data capture
-- User session information
-- Environment and system state
+## ✨ Features
 
-### 6. **APM Tracing**
-- Distributed tracing across all endpoints
-- Database query monitoring simulation
-- External API call tracing
-- Custom span annotations
+This demo application demonstrates all key Datadog developer features:
+
+### 📊 **Observability & Monitoring**
+- **APM Tracing** - Distributed tracing across all endpoints
+- **Log Management** - Structured JSON logs with trace correlation
+- **Custom Metrics** - Business and system metrics with `logger.gauge()`
+- **Real User Monitoring** - Performance tracking and analytics
+
+### 🔍 **Developer Experience**
+- **Code Insights** - Runtime error detection and security vulnerability scanning
+- **Exception Replay** - Detailed error context with request/response data
+- **View in IDE** - Jump from Datadog directly to source code
+- **Static Analysis** - Pre-commit vulnerability detection with ESLint + Snyk
+
+### 🧪 **Testing & Quality**
+- **Flaky Test Detection** - Identify unreliable tests automatically
+- **Performance Profiling** - Memory and CPU profiling
+- **Security Scanning** - SQL injection and vulnerability detection
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 16+
-- Docker
-- Minikube with `eran-k8` profile
-- Datadog Agent configured in your cluster
 
-### 1. Deploy to Minikube
+- **Node.js** 16+ and npm
+- **Docker** (optional, for containerized deployment)
+- **Kubernetes/Minikube** (optional, for K8s deployment)
+- **Datadog Account** with API and APP keys
+
+### Installation
+
 ```bash
-# Clone and navigate to the project
-cd /Users/eran.rahmani/datadog-demo-app
+# Clone the repository
+git clone https://github.com/eranrh86/datadog-demo-app.git
+cd datadog-demo-app
 
 # Install dependencies
 npm install
 
-# Deploy to minikube
+# Set up environment variables
+export DD_API_KEY=your_api_key_here
+export DD_SERVICE=datadog-demo-app
+export DD_ENV=demo
+export DD_VERSION=1.0.0
+
+# Start the application
+npm start
+```
+
+The application will be available at `http://localhost:3000`
+
+### Docker Deployment
+
+```bash
+# Build the Docker image
+docker build -t datadog-demo-app .
+
+# Run with Datadog agent
+docker run -d \
+  -p 3000:3000 \
+  -e DD_API_KEY=your_api_key \
+  -e DD_SERVICE=datadog-demo-app \
+  -e DD_ENV=demo \
+  datadog-demo-app
+```
+
+### Kubernetes Deployment
+
+```bash
+# Deploy to your cluster
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/deployment.yaml
+
+# Or use the deployment script
 ./scripts/deploy.sh
 ```
 
-### 2. Generate Demo Data
+---
+
+## 🎬 Demo Scenarios
+
+### 1️⃣ Log Annotations & Custom Metrics
+
 ```bash
-# Run test scenarios to generate logs, traces, and errors
-./scripts/test-demo.sh
+# Generate logs with custom metrics
+curl http://localhost:3000/
+curl http://localhost:3000/api/health
+
+# View in Datadog: Logs → Custom Metrics Dashboard
 ```
 
-### 3. Run Flaky Tests
+**What to show:**
+- Real-time log volume gauging
+- Custom business metrics
+- Structured logging with trace correlation
+
+### 2️⃣ Exception Replay & Error Tracking
+
 ```bash
-# Demonstrate flaky test detection
-npm test
-npm run test:flaky
+# Trigger intentional errors
+curl http://localhost:3000/api/users/999
+curl http://localhost:3000/api/orders/666
+curl http://localhost:3000/error/runtime
+
+# View in Datadog: APM → Error Tracking → Exception Replay
 ```
 
-### 4. Static Code Analysis
+**What to show:**
+- Full request/response context
+- Stack traces with source code
+- User session information
+- Environment state at error time
+
+### 3️⃣ Code Insights & Security
+
 ```bash
-# Run linting (will show security issues)
-npm run lint
-
-# Run security scan
-npm run security-scan
-```
-
-## 📊 Demo Endpoints
-
-### Normal Operations
-- `GET /` - Homepage with log annotations
-- `GET /api/health` - Health checks with metrics
-- `GET /api/users` - User management with tracing
-- `GET /api/orders` - Order processing with performance monitoring
-
-### Error Scenarios (for Exception Replay)
-- `GET /api/users/999` - Runtime error (null pointer)
-- `GET /api/orders/666` - Intentional exception
-- `GET /api/orders/500` - Database connection error
-- `GET /error/runtime` - Direct runtime error
-
-### Security Vulnerabilities (for Code Insights)
-- `GET /vulnerable/123` - SQL injection vulnerability
-- `GET /vulnerable/'; DROP TABLE users; --` - SQL injection attempt
-
-### Performance Issues
-- `GET /memory-leak` - Memory leak simulation
-- Multiple rapid requests to `/api/orders` - Load testing
-
-## 🎬 Demo Script
-
-### 1. Log Annotations Demo
-```bash
-# Show log volume gauging
-curl http://<minikube-ip>:30080/
-curl http://<minikube-ip>:30080/api/health/metrics
-
-# In Datadog: Show custom metrics dashboard
-```
-
-### 2. Code Insights Demo
-```bash
-# Trigger runtime errors
-curl http://<minikube-ip>:30080/api/users/999
-curl http://<minikube-ip>:30080/api/orders/666
-
 # Run static analysis
 npm run lint
-npm run security-scan
 
-# In Datadog: Show Code Insights alerts and vulnerabilities
+# Trigger security vulnerabilities
+curl "http://localhost:3000/vulnerable/'; DROP TABLE users; --"
+
+# View in Datadog: Code Insights → Vulnerabilities
 ```
 
-### 3. View in IDE Demo
+**What to show:**
+- SQL injection detection
+- Security vulnerability alerts
+- Code quality issues
+- Performance bottlenecks
+
+### 4️⃣ View in IDE Integration
+
 ```bash
 # Generate error with stack trace
-curl http://<minikube-ip>:30080/error/runtime
+curl http://localhost:3000/error/runtime
 
 # In Datadog: Click "View in IDE" from error trace
-# Should open the exact file and line in your IDE
 ```
 
-### 4. Exception Replay Demo
-```bash
-# Create detailed error context
-curl -X POST http://<minikube-ip>:30080/api/orders \
-  -H "Content-Type: application/json" \
-  -d '{"userId":"invalid","product":"Test","amount":"not-a-number"}'
+**What to show:**
+- Direct jump from Datadog to source code
+- Exact file and line number navigation
+- Seamless developer workflow
 
-# In Datadog: Show full request/response context in Exception Replay
-```
+### 5️⃣ Flaky Test Detection
 
-### 5. Flaky Tests Demo
 ```bash
-# Run tests multiple times to show flaky behavior
+# Run tests multiple times
 npm test
 npm test
 npm test
 
-# In Datadog: Show flaky test detection and patterns
+# View in Datadog: CI/CD → Test Visibility → Flaky Tests
 ```
 
-## 🔧 Configuration
+**What to show:**
+- Flaky test identification
+- Test reliability metrics
+- Failure patterns and trends
 
-### Environment Variables
+### 6️⃣ APM & Performance Monitoring
+
 ```bash
-# Datadog Configuration
-DD_SERVICE=datadog-demo-app
-DD_ENV=demo
-DD_VERSION=1.0.0
-DD_LOGS_INJECTION=true
-DD_RUNTIME_METRICS_ENABLED=true
-DD_PROFILING_ENABLED=true
-DD_TRACE_SAMPLE_RATE=1
-DD_TRACE_ANALYTICS_ENABLED=true
+# Generate traffic
+./traffic-generator.sh
 
-# Application Configuration
-NODE_ENV=production
-LOG_LEVEL=info
-PORT=3000
+# Or use the test script
+./scripts/test-demo.sh
+
+# View in Datadog: APM → Services → datadog-demo-app
 ```
 
-### Kubernetes Labels
-The application uses proper Datadog labels for service mapping:
-```yaml
-labels:
-  tags.datadoghq.com/service: datadog-demo-app
-  tags.datadoghq.com/env: demo
-  tags.datadoghq.com/version: "1.0.0"
-```
+**What to show:**
+- Distributed tracing
+- Service dependencies
+- Performance metrics
+- Database query monitoring
 
-## 📁 Project Structure
+---
+
+## 📚 API Endpoints
+
+### Normal Operations
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Homepage with log annotations |
+| `/api/health` | GET | Health check with metrics |
+| `/api/users` | GET | List all users |
+| `/api/users/:id` | GET | Get user by ID |
+| `/api/orders` | GET | List all orders |
+| `/api/orders/:id` | GET | Get order by ID |
+
+### Error Scenarios (Demo)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/users/999` | GET | Null pointer exception |
+| `/api/orders/666` | GET | Intentional error |
+| `/api/orders/500` | GET | Database error simulation |
+| `/error/runtime` | GET | Runtime error |
+
+### Security Vulnerabilities (Demo)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/vulnerable/:id` | GET | SQL injection vulnerability |
+| `/memory-leak` | GET | Memory leak simulation |
+
+---
+
+## 🏗️ Project Structure
 
 ```
 datadog-demo-app/
 ├── src/
-│   ├── app.js              # Main application with Datadog integration
-│   ├── utils/logger.js     # Custom logger with metrics
-│   ├── middleware/         # Request logging and error handling
-│   └── routes/             # API endpoints with demo scenarios
-├── tests/                  # Flaky tests for demonstration
-├── k8s/                    # Kubernetes manifests
-├── scripts/                # Deployment and testing scripts
-├── .eslintrc.js           # Static analysis configuration
-├── jest.config.js         # Test configuration
-└── Dockerfile             # Container configuration
+│   ├── app.js                 # Main application with Datadog integration
+│   ├── middleware/
+│   │   ├── errorHandler.js    # Global error handling
+│   │   └── requestLogger.js   # Request/response logging
+│   ├── routes/
+│   │   ├── health.js          # Health check endpoints
+│   │   ├── orders.js          # Order management (with errors)
+│   │   └── users.js           # User management (with errors)
+│   └── utils/
+│       └── logger.js          # Custom logger with Datadog metrics
+├── tests/
+│   ├── users.test.js          # User API tests (some flaky)
+│   ├── orders.test.js         # Order API tests (some flaky)
+│   └── setup.js               # Test configuration
+├── k8s/
+│   ├── namespace.yaml         # Kubernetes namespace
+│   ├── configmap.yaml         # Configuration
+│   └── deployment.yaml        # Deployment with Datadog labels
+├── scripts/
+│   ├── deploy.sh              # Deployment automation
+│   ├── test-demo.sh           # Demo scenario runner
+│   └── quick-demo.sh          # Quick demo setup
+├── docs/                      # Additional documentation
+├── Dockerfile                 # Container configuration
+├── package.json               # Dependencies and scripts
+└── README.md                  # This file
 ```
 
-## 🎯 Key Demo Points
+---
 
-1. **Log Volume Metrics**: Show real-time log volume gauging in Datadog dashboards
-2. **Security Alerts**: Demonstrate Code Insights detecting vulnerabilities in real-time
-3. **Performance Monitoring**: Show slow query detection and memory leak alerts
-4. **Error Tracking**: Use Exception Replay to debug production issues
-5. **Flaky Test Detection**: Show how Datadog identifies unreliable tests
-6. **IDE Integration**: Jump from Datadog directly to source code
-7. **Static Analysis**: Show pre-commit vulnerability detection
+## ⚙️ Configuration
 
-## 🔍 Monitoring & Observability
+### Environment Variables
 
-The application generates comprehensive telemetry data:
-- **Logs**: Structured JSON logs with trace correlation
-- **Metrics**: Custom business and system metrics
-- **Traces**: Distributed tracing across all operations
-- **Errors**: Detailed exception context and stack traces
-- **Performance**: Response times, memory usage, and throughput
+```bash
+# Datadog Configuration
+DD_SERVICE=datadog-demo-app        # Service name
+DD_ENV=demo                         # Environment
+DD_VERSION=1.0.0                    # Version
+DD_API_KEY=<your-api-key>          # Datadog API key
+DD_LOGS_INJECTION=true             # Enable log correlation
+DD_RUNTIME_METRICS_ENABLED=true    # Runtime metrics
+DD_PROFILING_ENABLED=true          # Continuous profiling
+DD_TRACE_SAMPLE_RATE=1             # 100% trace sampling
+DD_TRACE_ANALYTICS_ENABLED=true    # Enable analytics
 
-## 🚨 Intentional Issues (for Demo)
+# Application Configuration
+NODE_ENV=production                # Environment mode
+LOG_LEVEL=info                     # Logging level
+PORT=3000                          # Application port
+```
 
-This application contains intentional issues to demonstrate Datadog features:
-- SQL injection vulnerabilities
-- Memory leaks
-- Runtime exceptions
-- Flaky tests
-- Performance bottlenecks
-- Security misconfigurations
+### Kubernetes Labels
 
-**⚠️ Do not use this code in production environments!**
+```yaml
+labels:
+  tags.datadoghq.com/service: "datadog-demo-app"
+  tags.datadoghq.com/env: "demo"
+  tags.datadoghq.com/version: "1.0.0"
+```
+
+---
+
+## 📖 Documentation
+
+- **[Demo Guide](docs/DEMO_GUIDE.md)** - Complete demo walkthrough
+- **[Cursor Integration](docs/CURSOR_DEMO_GUIDE.md)** - IDE integration setup
+- **[Traffic Generator](docs/TRAFFIC_GENERATOR_GUIDE.md)** - Load testing guide
+- **[Source Code Integration](docs/SOURCE_CODE_INTEGRATION.md)** - View in IDE setup
+
+---
+
+## 🚨 Important Notes
+
+> ⚠️ **This application contains intentional bugs and vulnerabilities for demonstration purposes:**
+> - SQL injection vulnerabilities
+> - Memory leaks
+> - Runtime exceptions
+> - Flaky tests
+> - Performance bottlenecks
+> - Security misconfigurations
+>
+> **DO NOT use this code in production environments!**
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
 
 ## 📞 Support
 
-For demo questions or issues:
-1. Check the application logs: `kubectl logs -f deployment/datadog-demo-app -n datadog-demo`
-2. Verify Datadog agent connectivity
-3. Ensure all environment variables are set correctly
-4. Run the test script to generate sample data
+For questions or issues:
+- **Email**: eran.rahmani@datadoghq.com
+- **GitHub Issues**: [Create an issue](https://github.com/eranrh86/datadog-demo-app/issues)
+- **Datadog Docs**: [docs.datadoghq.com](https://docs.datadoghq.com)
+
+---
+
+<div align="center">
+
+**Made with ❤️ for Datadog Demos**
+
+⭐ Star this repo if you find it helpful!
+
+</div>

@@ -46,6 +46,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.uid
+        - name: DD_GIT_REPOSITORY_URL
+          value: "https://github.com/eranrh86/datadog-demo-app"
+        - name: DD_GIT_COMMIT_SHA
+          value: "REPLACE_WITH_COMMIT_SHA"
         envFrom:
         - configMapRef:
             name: datadog-demo-config

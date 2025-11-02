@@ -3,6 +3,10 @@ process.env.DD_SERVICE = process.env.DD_SERVICE || 'datadog-demo-app';
 process.env.DD_ENV = process.env.DD_ENV || 'demo';
 process.env.DD_VERSION = process.env.DD_VERSION || '1.0.0';
 
+// Set Git metadata for source code integration
+process.env.DD_GIT_REPOSITORY_URL = process.env.DD_GIT_REPOSITORY_URL || 'https://github.com/eranrh86/datadog-demo-app';
+process.env.DD_GIT_COMMIT_SHA = process.env.DD_GIT_COMMIT_SHA || '';
+
 // Initialize Datadog tracer FIRST with Error Tracking enabled
 const tracer = require('dd-trace').init({
   service: 'datadog-demo-app',
