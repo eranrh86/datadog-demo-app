@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+.env
+.nyc_output
+coverage
+.coverage
+tests
+*.test.js
+.eslintrc.js
+jest.config.js
+.snyk
+k8s
+Dockerfile
+.dockerignore

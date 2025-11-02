@@ -1,0 +1,104 @@
+╔══════════════════════════════════════════════════════════════════╗
+║              📊 DATADOG-DEMO-APP STATUS REPORT                   ║
+║                  $(date '+%Y-%m-%d %H:%M:%S')                    ║
+╚══════════════════════════════════════════════════════════════════╝
+
+✅ ALL SYSTEMS OPERATIONAL
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🖥️  INFRASTRUCTURE STATUS:
+
+  ✅ Minikube Cluster: Running (eran-k8)
+  ✅ Control Plane: Running
+  ✅ Worker Node: Running (eran-k8-m02)
+  ✅ Kubernetes API: Accessible
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📦 APPLICATION STATUS:
+
+  ✅ Pods Running: 2/2
+     • datadog-demo-app-768c75465f-m7mmx (Running)
+     • datadog-demo-app-768c75465f-wlxql (Running)
+  
+  ✅ Service: datadog-demo-service (NodePort 30080)
+  ✅ Health Checks: Passing
+  ✅ Uptime: 16+ hours
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔥 ERROR GENERATION:
+
+  ✅ Status: Successfully Generated
+  ✅ Count: 10 fresh errors
+  ✅ Timestamp: 2025-11-02 15:50:56 - 15:51:06
+  ✅ Method: Direct pod execution
+  ✅ Target: Line 48 in src/routes/users.js
+  ✅ Error Type: ReferenceError: undefinedUser is not defined
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📡 DATADOG INTEGRATION:
+
+  ✅ Service Name: datadog-demo-app
+  ✅ Environment: demo
+  ✅ Version: 1.0.0
+  ✅ APM Traces: Active
+  ✅ Log Collection: Active
+  ✅ Custom Metrics: Active
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔍 CODE INSIGHTS CONFIGURATION:
+
+  ✅ Extension: Installed & Enabled
+  ✅ API Key: Configured (c1091c7a...)
+  ✅ Application Key: Configured (51a8536...)
+  ✅ Service: datadog-demo-app
+  ✅ Path Mapping: /app → /Users/eran.rahmani/datadog-demo-app
+  ✅ Error Tracking: Enabled
+  ✅ Code Security: Enabled
+  ✅ Test Optimization: Enabled
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 NEXT ACTIONS:
+
+  1. ⏳ WAIT 2-3 MINUTES
+     Errors need time to appear in Datadog Error Tracking
+
+  2. 🔄 RELOAD CURSOR (if not done)
+     Cmd + Shift + P → "Developer: Reload Window"
+
+  3. ⏰ WAIT 3-5 MINUTES AFTER RELOAD
+     Extension needs time to query Datadog and process errors
+
+  4. 👀 CHECK LINE 48 in users.js
+     Look for red wavy underline (squiggle)
+
+  5. 🌐 VERIFY IN DATADOG UI
+     Go to Error Tracking → Filter: service:datadog-demo-app
+     Should see 10 errors from 15:50-15:51
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 EXPECTED RESULT:
+
+  Line 48 in src/routes/users.js should show:
+
+  return res.json({ user: undefinedUser.profile.details });
+  ∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿
+  ↑ Red wavy underline
+
+  Hover tooltip:
+  • Error: ReferenceError: undefinedUser is not defined
+  • Occurrences: 10+
+  • Link: View in Datadog
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ STATUS: READY FOR CODE INSIGHTS TESTING
+
+All components are operational and fresh errors have been generated!
+

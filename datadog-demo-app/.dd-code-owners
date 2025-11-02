@@ -1,0 +1,16 @@
+# Datadog Code Owners Configuration
+# This file helps the Datadog VS Code extension identify the correct service name
+
+# Service metadata
+service: datadog-demo-app
+team: demo-team
+environment: demo
+
+# Repository mapping
+repository: datadog-demo-app
+
+
+
+
+
+

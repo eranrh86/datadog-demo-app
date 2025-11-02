@@ -1,0 +1,8 @@
+{
+  "site": "datadoghq.com",
+  "apiKey": "be9f47b60fedd8042065bd3052eb546e",
+  "service": "datadog-demo-app",
+  "env": "demo",
+  "version": "1.0.0"
+}
+

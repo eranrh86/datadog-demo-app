@@ -1,0 +1,18 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.25.0
+
+# Ignore specific vulnerabilities for demo purposes
+ignore:
+  # Intentional vulnerabilities for Code Insights demo
+  SNYK-JS-LODASH-567746:
+    - '*':
+        reason: Intentional vulnerability for Datadog Code Insights demo
+        expires: 2024-12-31T23:59:59.999Z
+  
+  SNYK-JS-AXIOS-1038255:
+    - '*':
+        reason: Demo environment - not production
+        expires: 2024-12-31T23:59:59.999Z
+
+# Patches applied by Snyk
+patch: {}
