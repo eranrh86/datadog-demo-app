@@ -20,7 +20,7 @@
 
 ---
 
-## 🎯 4 Key Features
+## 🎯 5 Key Features
 
 ### 1️⃣ Code Insights
 **What:** Runtime errors & vulnerabilities detection  
@@ -41,6 +41,11 @@
 **What:** Full error context for debugging  
 **Test:** `curl http://localhost:3000/api/orders/666`  
 **View:** Error Tracking → Click error → See full context
+
+### 5️⃣ Fix in Chat (Cursor Only)
+**What:** AI-powered code fixes in IDE  
+**Test:** In Cursor, Cmd+K → "Fix this error"  
+**View:** Cursor → AI suggests fix with explanation
 
 ---
 

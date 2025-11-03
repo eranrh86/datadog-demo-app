@@ -1,0 +1,13 @@
+{
+  "datadog.enabled": true,
+  "datadog.service": "datadog-demo-app",
+  "datadog.env": "demo",
+  "datadog.version": "1.0.0",
+  "datadog.site": "datadoghq.com",
+  "datadog.codeInsights.enabled": true,
+  "datadog.errorTracking.enabled": true,
+  "datadog.fixInChat.enabled": true,
+  "datadog.sourceCodeIntegration.enabled": true,
+  "datadog.repository": "https://github.com/eranrh86/datadog-demo-app"
+}
+
