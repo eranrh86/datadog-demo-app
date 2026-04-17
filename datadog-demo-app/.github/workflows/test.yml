@@ -1,0 +1,305 @@
+name: StockLens Test Suite
+
+on:
+  push:
+    branches: [main, develop, 'feature/**', 'claude/**']
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+  DD_SERVICE: stocklens-tests
+  DD_ENV: ci
+  DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+  DD_CIVISIBILITY_ENABLED: 'true'
+  DD_CIVISIBILITY_AGENTLESS_ENABLED: 'true'
+
+jobs:
+  # ── 1. Node unit + API tests (Jest + supertest) ──────────────────────────
+  jest-tests:
+    name: Jest — Unit & API Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: datadog-demo-app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: datadog-demo-app
+        run: npm ci
+
+      - name: Run Jest tests (unit + API)
+        working-directory: datadog-demo-app
+        env:
+          NODE_ENV: test
+          JWT_SECRET: test-jwt-secret-not-for-production
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID || '424242424242-test' }}
+          LOG_LEVEL: silent
+        run: |
+          npx jest \
+            --testPathPattern="tests/(unit|api)/" \
+            --forceExit \
+            --coverage \
+            --coverageDirectory=coverage \
+            --reporters=default \
+            --reporters=jest-junit \
+            2>&1
+
+      - name: Upload Jest coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jest-coverage
+          path: datadog-demo-app/coverage/
+          retention-days: 14
+
+      - name: Upload Jest JUnit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jest-junit
+          path: datadog-demo-app/junit.xml
+          retention-days: 14
+
+  # ── 2. Python unit tests ──────────────────────────────────────────────────
+  python-tests:
+    name: Python — Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Python dependencies
+        working-directory: datadog-demo-app
+        run: |
+          pip install --upgrade pip
+          # Install yfinance for mock testing + test deps
+          pip install yfinance pytest pytest-cov pytest-json-report
+          # Install app dependencies if requirements.txt exists
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run Python unit tests
+        working-directory: datadog-demo-app
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m pytest tests/unit/test_earnings_whisper_python.py \
+            -v \
+            --tb=short \
+            --cov=src \
+            --cov-report=xml:coverage-python.xml \
+            --json-report \
+            --json-report-file=pytest-report.json \
+            2>&1
+
+      - name: Upload Python coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-coverage
+          path: datadog-demo-app/coverage-python.xml
+          retention-days: 14
+
+      - name: Upload pytest JSON report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report
+          path: datadog-demo-app/pytest-report.json
+          retention-days: 14
+
+  # ── 3. Playwright E2E tests — Google OAuth + Earnings Whisper ────────────
+  playwright-auth:
+    name: Playwright — Auth & Earnings E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Only run E2E if unit tests pass
+    needs: [jest-tests]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: datadog-demo-app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: datadog-demo-app
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: datadog-demo-app
+        run: npx playwright install --with-deps chromium
+
+      - name: Start app server
+        working-directory: datadog-demo-app
+        env:
+          NODE_ENV: test
+          PORT: 3000
+          JWT_SECRET: test-jwt-secret-not-for-production
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID || '424242424242-test' }}
+          LOG_LEVEL: silent
+        run: |
+          node src/app.js &
+          echo "APP_PID=$!" >> $GITHUB_ENV
+          # Wait for server to be ready
+          npx wait-on http://localhost:3000/api/health --timeout 30000
+
+      - name: Run Playwright auth + earnings tests
+        working-directory: datadog-demo-app
+        env:
+          APP_URL: http://localhost:3000
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID || '424242424242-test' }}
+          CI: 'true'
+        run: |
+          npx playwright test tests/auth/google-oauth.spec.js \
+            --project=chromium \
+            --reporter=list,html,junit \
+            --output=playwright-auth-results \
+            2>&1
+
+      - name: Stop app server
+        if: always()
+        run: |
+          if [ -n "$APP_PID" ]; then kill "$APP_PID" 2>/dev/null || true; fi
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-auth-report
+          path: datadog-demo-app/playwright-report/
+          retention-days: 14
+
+      - name: Upload Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-auth-results
+          path: datadog-demo-app/playwright-auth-results/
+          retention-days: 14
+
+  # ── 4. Existing mobile Playwright tests (unchanged) ──────────────────────
+  playwright-mobile:
+    name: Playwright — Mobile E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [jest-tests]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: datadog-demo-app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: datadog-demo-app
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: datadog-demo-app
+        run: npx playwright install --with-deps webkit chromium
+
+      - name: Start app server
+        working-directory: datadog-demo-app
+        env:
+          NODE_ENV: test
+          PORT: 3000
+          LOG_LEVEL: silent
+        run: |
+          node src/app.js &
+          echo "APP_PID=$!" >> $GITHUB_ENV
+          npx wait-on http://localhost:3000/api/health --timeout 30000
+
+      - name: Run mobile Playwright tests
+        working-directory: datadog-demo-app
+        env:
+          APP_URL: ${{ secrets.STAGING_URL || 'http://localhost:3000' }}
+          CI: 'true'
+        run: |
+          npx playwright test \
+            --config=playwright.config.js \
+            --reporter=list,html,junit \
+            2>&1
+
+      - name: Stop app server
+        if: always()
+        run: |
+          if [ -n "$APP_PID" ]; then kill "$APP_PID" 2>/dev/null || true; fi
+
+      - name: Upload mobile test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-mobile-report
+          path: datadog-demo-app/mobile-test-report/
+          retention-days: 14
+
+  # ── 5. Summary gate ───────────────────────────────────────────────────────
+  all-tests-passed:
+    name: All Tests Passed
+    runs-on: ubuntu-latest
+    needs: [jest-tests, python-tests, playwright-auth]
+    if: always()
+
+    steps:
+      - name: Check all jobs
+        run: |
+          if [[ "${{ needs.jest-tests.result }}" != "success" ]]; then
+            echo "Jest tests failed"
+            exit 1
+          fi
+          if [[ "${{ needs.python-tests.result }}" != "success" ]]; then
+            echo "Python tests failed"
+            exit 1
+          fi
+          if [[ "${{ needs.playwright-auth.result }}" != "success" ]]; then
+            echo "Playwright auth tests failed"
+            exit 1
+          fi
+          echo "All required test suites passed."
+
+      - name: Send Datadog test summary event
+        if: success() && env.DATADOG_API_KEY != ''
+        run: |
+          curl -s -X POST "https://api.datadoghq.com/api/v1/events" \
+            -H "DD-API-KEY: $DATADOG_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "title": "StockLens CI: All tests passed",
+              "text": "Branch: ${{ github.ref_name }} | Commit: ${{ github.sha }}",
+              "tags": ["env:ci", "service:stocklens", "branch:${{ github.ref_name }}"],
+              "alert_type": "success"
+            }'

@@ -7,11 +7,23 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "test": "jest",
+    "test:unit": "jest --testPathPattern='tests/(unit|api)/'",
+    "test:api": "jest --testPathPattern='tests/api/'",
     "test:flaky": "jest --testNamePattern='flaky'",
+    "test:auth": "npx playwright test --config=playwright.auth.config.js",
+    "test:auth:headed": "npx playwright test --config=playwright.auth.config.js --headed",
+    "test:auth:report": "npx playwright show-report playwright-auth-report",
+    "test:mobile": "npx playwright test --config=playwright.config.js",
+    "test:mobile:iphone": "npx playwright test --config=playwright.config.js --project='iPhone 15 Pro'",
+    "test:mobile:android": "npx playwright test --config=playwright.config.js --project='Pixel 7 (Android)'",
+    "test:mobile:report": "npx playwright show-report mobile-test-report",
+    "test:python": "python -m pytest tests/unit/test_earnings_whisper_python.py -v",
+    "test:all": "npm run test:unit && npm run test:auth",
     "lint": "eslint src/",
     "security-scan": "npm audit && snyk test"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
     "axios": "^1.6.0",
     "cors": "^2.8.5",
     "dd-trace": "^4.20.0",
@@ -23,11 +35,13 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@types/jest": "^29.5.8",
     "eslint": "^8.55.0",
     "eslint-plugin-security": "^1.7.1",
     "jest": "^29.7.0",
     "nodemon": "^3.0.2",
+    "playwright": "^1.59.1",
     "snyk": "^1.1266.0",
     "supertest": "^7.1.4"
   },
@@ -38,5 +52,12 @@
     "service": "datadog-demo-app",
     "env": "demo",
     "version": "1.0.0"
-  }
+  },
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

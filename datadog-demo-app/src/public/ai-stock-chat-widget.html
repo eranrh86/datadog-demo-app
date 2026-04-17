@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Stock Analyst — StockLens</title>
+
+  <style>
+    /* ── Design tokens (match existing StockLens dark theme) ── */
+    :root {
+      --bg:         #0f172a;
+      --card:       #1e293b;
+      --card-inner: #0f172a;
+      --accent:     #3b82f6;
+      --accent-dim: #1d4ed8;
+      --text:       #f1f5f9;
+      --text-muted: #64748b;
+      --border:     #334155;
+      --radius:     12px;
+      --radius-sm:  6px;
+      --chat-user:  #1e3a5f;
+      --chat-ai:    #1a2535;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    /* ── Widget container ── */
+    .ai-chat-widget {
+      width: 100%;
+      max-width: 560px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,.45);
+    }
+
+    /* ── Header ── */
+    .widget-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--card-inner);
+    }
+    .widget-header .ai-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: linear-gradient(135deg,#4f46e5,#7c3aed);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .5px;
+      color: #fff;
+    }
+    .widget-header .stock-label {
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--text);
+    }
+    .widget-header .stock-price {
+      margin-left: auto;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .widget-header .stock-price span.pos { color: #22c55e; }
+    .widget-header .stock-price span.neg { color: #ef4444; }
+
+    /* ── Messages area ── */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 260px;
+      max-height: 420px;
+    }
+
+    .msg {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .msg .bubble {
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      line-height: 1.65;
+      max-width: 92%;
+      word-break: break-word;
+    }
+    .msg.user { align-items: flex-end; }
+    .msg.user .bubble {
+      background: var(--chat-user);
+      border-bottom-right-radius: 2px;
+      color: #cbd5e1;
+    }
+    .msg.ai { align-items: flex-start; }
+    .msg.ai .bubble {
+      background: var(--chat-ai);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 2px;
+      color: var(--text);
+    }
+    .msg .label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 0 2px;
+    }
+
+    /* Streaming cursor */
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 14px;
+      background: var(--accent);
+      vertical-align: middle;
+      margin-left: 2px;
+      animation: blink .7s steps(1) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .disclaimer {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-style: italic;
+    }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--text-muted);
+      font-size: 13px;
+      text-align: center;
+    }
+    .empty-state .icon { font-size: 32px; }
+
+    /* ── Input bar ── */
+    .input-bar {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      background: var(--card-inner);
+    }
+
+    .input-bar input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 9px 12px;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .input-bar input::placeholder { color: var(--text-muted); }
+    .input-bar input:focus { border-color: var(--accent); }
+    .input-bar input:disabled { opacity: .5; cursor: not-allowed; }
+
+    .input-bar button {
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: #fff;
+      padding: 9px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s, transform .1s;
+      white-space: nowrap;
+    }
+    .input-bar button:hover:not(:disabled) { background: var(--accent-dim); }
+    .input-bar button:active:not(:disabled) { transform: scale(.97); }
+    .input-bar button:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── Suggested prompts ── */
+    .suggestions {
+      padding: 0 14px 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .suggestion-pill {
+      background: var(--card-inner);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: border-color .2s, color .2s;
+    }
+    .suggestion-pill:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    /* ── Error banner ── */
+    .error-banner {
+      margin: 8px 14px 0;
+      padding: 8px 12px;
+      background: rgba(239,68,68,.12);
+      border: 1px solid rgba(239,68,68,.35);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: #fca5a5;
+      display: none;
+    }
+    .error-banner.visible { display: block; }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================
+     AI Stock Chat Widget
+     Drop this section into the StockLens stock detail panel.
+     ============================================================ -->
+<div class="ai-chat-widget" id="aiChatWidget">
+
+  <!-- Header -->
+  <div class="widget-header">
+    <span class="ai-badge">&#10024; AI Analyst</span>
+    <span class="stock-label" id="stockLabel">TSLA</span>
+    <span class="stock-price" id="stockPrice">
+      $<span id="priceVal">248.50</span>
+      &nbsp;<span class="neg" id="changeVal">&#9660;&nbsp;2.4%</span>
+    </span>
+  </div>
+
+  <!-- Error banner -->
+  <div class="error-banner" id="errorBanner"></div>
+
+  <!-- Messages -->
+  <div class="messages" id="messages">
+    <div class="empty-state" id="emptyState">
+      <div class="icon">&#129302;</div>
+      <div>Ask me anything about <strong id="emptySymbol">TSLA</strong></div>
+    </div>
+  </div>
+
+  <!-- Suggested prompts -->
+  <div class="suggestions" id="suggestions">
+    <div class="suggestion-pill" onclick="sendSuggestion(this)">Why is it moving today?</div>
+    <div class="suggestion-pill" onclick="sendSuggestion(this)">Upcoming catalysts?</div>
+    <div class="suggestion-pill" onclick="sendSuggestion(this)">Key risks to watch</div>
+    <div class="suggestion-pill" onclick="sendSuggestion(this)">Analyst consensus</div>
+  </div>
+
+  <!-- Input bar -->
+  <div class="input-bar">
+    <input
+      type="text"
+      id="chatInput"
+      placeholder="Ask about TSLA..."
+      maxlength="280"
+      autocomplete="off"
+    />
+    <button id="sendBtn" onclick="sendMessage()">Ask AI</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   StockLens AI Chat Widget — vanilla JS, no dependencies
+   ============================================================ */
+
+// ---------------------------------------------------------------------------
+// Stock context (normally injected by the parent page / framework)
+// ---------------------------------------------------------------------------
+const STOCK = {
+  symbol:    'TSLA',
+  price:     248.50,
+  change:    -2.4,
+  marketCap: '789B',
+  peRatio:   55.2,
+};
+
+// Base URL of the backend (same-origin in production)
+const API_BASE = window.STOCKLENS_API_BASE || '';
+
+// ---------------------------------------------------------------------------
+// DOM refs
+// ---------------------------------------------------------------------------
+const messagesEl  = document.getElementById('messages');
+const inputEl     = document.getElementById('chatInput');
+const sendBtn     = document.getElementById('sendBtn');
+const errorBanner = document.getElementById('errorBanner');
+const emptyState  = document.getElementById('emptyState');
+const suggestions = document.getElementById('suggestions');
+
+// ---------------------------------------------------------------------------
+// Render stock header
+// ---------------------------------------------------------------------------
+function initHeader() {
+  document.getElementById('stockLabel').textContent = STOCK.symbol;
+  document.getElementById('emptySymbol').textContent = STOCK.symbol;
+  document.getElementById('priceVal').textContent = STOCK.price.toFixed(2);
+
+  const changeEl  = document.getElementById('changeVal');
+  const positive  = STOCK.change >= 0;
+  changeEl.className = positive ? 'pos' : 'neg';
+  changeEl.innerHTML = positive
+    ? `&#9650;&nbsp;${STOCK.change.toFixed(2)}%`
+    : `&#9660;&nbsp;${Math.abs(STOCK.change).toFixed(2)}%`;
+
+  inputEl.placeholder = `Ask about ${STOCK.symbol}...`;
+}
+
+// ---------------------------------------------------------------------------
+// Append a message bubble
+// ---------------------------------------------------------------------------
+function appendMessage(role, text, streaming = false) {
+  emptyState.style.display  = 'none';
+  suggestions.style.display = 'none';
+
+  const msg    = document.createElement('div');
+  msg.className = `msg ${role}`;
+
+  const label  = document.createElement('div');
+  label.className = 'label';
+  label.textContent = role === 'user' ? 'You' : `${STOCK.symbol} AI Analyst`;
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+
+  if (streaming) {
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    cursor.id = 'streamCursor';
+    bubble.appendChild(cursor);
+  }
+
+  msg.appendChild(label);
+  msg.appendChild(bubble);
+  messagesEl.appendChild(msg);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  return bubble;
+}
+
+// ---------------------------------------------------------------------------
+// Show / hide error banner
+// ---------------------------------------------------------------------------
+function showError(msg) {
+  errorBanner.textContent = msg;
+  errorBanner.classList.add('visible');
+  setTimeout(() => errorBanner.classList.remove('visible'), 6000);
+}
+
+// ---------------------------------------------------------------------------
+// Send a message and stream the response
+// ---------------------------------------------------------------------------
+async function sendMessage() {
+  const question = inputEl.value.trim();
+  if (!question || sendBtn.disabled) return;
+
+  // Clear input, disable controls
+  inputEl.value    = '';
+  inputEl.disabled = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = '...';
+
+  // Append user bubble
+  appendMessage('user', question);
+
+  // Append AI bubble (streaming target)
+  const aiBubble = appendMessage('ai', '', true);
+  let streamText = '';
+
+  const url = `${API_BASE}/api/stock/${encodeURIComponent(STOCK.symbol)}/ai-chat`;
+
+  try {
+    const resp = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        question,
+        context: {
+          price:     STOCK.price,
+          change:    STOCK.change,
+          marketCap: STOCK.marketCap,
+          peRatio:   STOCK.peRatio,
+        },
+      }),
+    });
+
+    if (!resp.ok) {
+      throw new Error(`Server returned ${resp.status}`);
+    }
+
+    // ---- Read the SSE stream ----
+    const reader  = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let   buffer  = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Split on SSE event boundaries
+      const lines = buffer.split('\n');
+      buffer = lines.pop();          // keep incomplete last line in buffer
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const payload = JSON.parse(line.slice(6));
+
+          if (payload.type === 'delta') {
+            streamText += payload.text;
+            // Remove cursor, update text, re-add cursor
+            const cursor = document.getElementById('streamCursor');
+            if (cursor) cursor.remove();
+            aiBubble.textContent = streamText;
+            const newCursor = document.createElement('span');
+            newCursor.className = 'cursor';
+            newCursor.id = 'streamCursor';
+            aiBubble.appendChild(newCursor);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+
+          } else if (payload.type === 'done') {
+            const cursor = document.getElementById('streamCursor');
+            if (cursor) cursor.remove();
+            // Final text is already in aiBubble.textContent
+
+          } else if (payload.type === 'error') {
+            const cursor = document.getElementById('streamCursor');
+            if (cursor) cursor.remove();
+            aiBubble.textContent = payload.error || 'AI service unavailable.';
+            showError(payload.error || 'AI service unavailable.');
+          }
+        } catch (_) {
+          // Malformed SSE line — skip
+        }
+      }
+    }
+
+    // Ensure cursor is removed when stream ends
+    const cursor = document.getElementById('streamCursor');
+    if (cursor) cursor.remove();
+
+  } catch (err) {
+    const cursor = document.getElementById('streamCursor');
+    if (cursor) cursor.remove();
+    aiBubble.textContent = 'Unable to reach the AI service. Please try again.';
+    showError(`Connection error: ${err.message}`);
+  } finally {
+    inputEl.disabled    = false;
+    sendBtn.disabled    = false;
+    sendBtn.textContent = 'Ask AI';
+    inputEl.focus();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Suggestion pills
+// ---------------------------------------------------------------------------
+function sendSuggestion(pill) {
+  inputEl.value = pill.textContent;
+  sendMessage();
+}
+
+// ---------------------------------------------------------------------------
+// Keyboard shortcut: Enter to send
+// ---------------------------------------------------------------------------
+inputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------------------
+initHeader();
+</script>
+</body>
+</html>

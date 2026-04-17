@@ -30,13 +30,19 @@ const orderRoutes = require('./routes/orders');
 const healthRoutes = require('./routes/health');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { requestLogger } = require('./middleware/requestLogger');
+const stockRoutes = require('./routes/stock');
+const aiRoutes    = require('./routes/ai');
 
+const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Security middleware
 app.use(helmet());
 app.use(cors());
+
+// Serve static files from src/public
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -49,6 +55,9 @@ app.use(requestLogger);
 app.use('/api/health', healthRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/stock', stockRoutes);
+app.use('/api/stock', aiRoutes);       // AI chat + earnings explanation
+app.use('/api',       aiRoutes);       // Portfolio summary (/api/portfolio/ai-summary)
 
 // Root endpoint with log annotations
 app.get('/', (req, res) => {

@@ -1,0 +1,102 @@
+# StockLens — Kubernetes Storage Manifests
+# =========================================
+# Provides a 1 Gi PersistentVolumeClaim for the SQLite database file,
+# then patches the stock-backend Deployment to mount it at /data.
+#
+# Apply order:
+#   kubectl apply -f k8s-storage.yaml
+#
+# Verify:
+#   kubectl -n stock-app get pvc stocklens-db-pvc
+#   kubectl -n stock-app exec deploy/stock-backend -- ls -lh /data/
+
+---
+# ── PersistentVolumeClaim ──────────────────────────────────────────────────────
+# Uses the cluster's default StorageClass (gp2 on EKS, or standard on minikube).
+# ReadWriteOnce is correct for SQLite — only one pod writes at a time.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stocklens-db-pvc
+  namespace: stock-app
+  labels:
+    app: stock-backend
+    component: database
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  # Remove storageClassName to use cluster default, or set explicitly:
+  # storageClassName: gp2
+
+---
+# ── Deployment patch (strategic merge) ────────────────────────────────────────
+# Apply after the base stock-backend Deployment already exists.
+# This adds the PVC volume + mount and the DB_PATH env var,
+# and runs init_db.py as an initContainer before the main Flask server.
+#
+# kubectl patch deployment stock-backend -n stock-app \
+#   --patch-file k8s-storage.yaml   # if using as a patch file
+#
+# Or embed directly in your main Deployment manifest (see inline comments).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stock-backend
+  namespace: stock-app
+spec:
+  selector:
+    matchLabels:
+      app: stock-backend
+  template:
+    spec:
+      # ── Init container: run schema migration before Flask starts ─────────────
+      initContainers:
+        - name: db-init
+          image: stock-backend:latest          # same image as main container
+          imagePullPolicy: IfNotPresent
+          command: ["python", "/app/init_db.py"]
+          env:
+            - name: DB_PATH
+              value: /data/stocklens.db
+          volumeMounts:
+            - name: stocklens-db
+              mountPath: /data
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+
+      # ── Main Flask container additions ───────────────────────────────────────
+      containers:
+        - name: stock-backend               # must match existing container name
+          env:
+            # Tell the app where the database lives
+            - name: DB_PATH
+              value: /data/stocklens.db
+            # Optional: seed demo data on first init (set to "0" in production)
+            - name: SEED_DEMO_DATA
+              value: "0"
+          volumeMounts:
+            - name: stocklens-db
+              mountPath: /data
+
+      # ── Volumes ──────────────────────────────────────────────────────────────
+      volumes:
+        - name: stocklens-db
+          persistentVolumeClaim:
+            claimName: stocklens-db-pvc
+
+---
+# ── (Alternative) emptyDir for pure demo / data-loss-acceptable deployments ───
+# Replace the PVC volume above with this if you just need a quick demo
+# and don't care about persistence across pod restarts.
+#
+# volumes:
+#   - name: stocklens-db
+#     emptyDir: {}
