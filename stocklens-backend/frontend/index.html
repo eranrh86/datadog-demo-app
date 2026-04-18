@@ -286,6 +286,19 @@
     .sm-table tr:hover td { background:var(--bg-hover,rgba(255,255,255,.03)); }
     .sm-load-btn { width:100%; padding:8px; background:none; border:1px solid var(--border); border-radius:8px; color:var(--text-muted); font-size:12px; cursor:pointer; margin-top:8px; }
     .sm-load-btn:hover { border-color:var(--accent); color:var(--accent); }
+    /* ── Guru Holders (in stock analysis) ───────────────────────────── */
+    .guru-section { margin-top: 16px; }
+    .guru-cards-row { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+    .guru-card { display:flex; flex-direction:column; align-items:center; gap:5px; padding:10px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; cursor:pointer; transition:border-color .15s,transform .15s; min-width:80px; max-width:100px; text-align:center; }
+    .guru-card:hover { border-color:var(--accent); transform:translateY(-2px); }
+    .guru-photo { width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--border); }
+    .guru-initials { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; color:#fff; }
+    .guru-name { font-size:10px; font-weight:600; color:var(--text-primary); line-height:1.2; }
+    .guru-pos { font-size:10px; color:var(--text-muted); }
+    .guru-signal-dot { width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:3px; }
+    .guru-loading { display:flex; gap:10px; }
+    .guru-loading .shimmer-box { width:80px; height:100px; border-radius:10px; flex-shrink:0; }
+    .guru-empty { font-size:12px; color:var(--text-muted); padding:8px 0; }
     /* ── Earnings Whisper Widget ─────────────────────────────────────── */
     .ew-widget { background:var(--bg-card,#1e293b); border:1px solid var(--border-lit,#334155); border-radius:12px; padding:16px; margin-bottom:12px; }
     .ew-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted,#64748b); margin-bottom:12px; display:flex; align-items:center; gap:6px; }
@@ -3054,6 +3067,10 @@ function renderAnalysis(sym) {
       `).join('')}
     </div>
 
+    <!-- Guru Holders -->
+    <div class="section-label" style="margin-bottom:8px">🎯 Held by Gurus</div>
+    <div class="guru-cards-row" id="guruHoldersRow-${sym}"></div>
+
     <!-- Social Sentiment -->
     <div class="social-card" id="socialSentimentCard-${sym}">
       <div class="section-label">Social Sentiment</div>
@@ -3088,6 +3105,9 @@ function renderAnalysis(sym) {
 
   // Load social sentiment async
   renderSocialSentiment(sym, document.getElementById('socialSentimentCard-' + sym));
+
+  // Load guru holders async
+  loadGuruHolders(sym, document.getElementById('guruHoldersRow-' + sym));
 }
 
 // ── Revenue & Growth + Earnings panels (real API data) ───────────────────────
@@ -4879,6 +4899,34 @@ async function loadSmDetail(slug) {
 function closeSmDetail() {
   document.getElementById('smDetailPanel').style.display = 'none';
   document.getElementById('smInvestorGrid').style.display = 'grid';
+}
+
+// ── Guru Holders in Stock Panel ─────────────────────────────────────────────
+async function loadGuruHolders(sym, containerEl) {
+  containerEl.innerHTML = `<div class="guru-loading">${[1,2,3].map(()=>'<div class="shimmer-box"></div>').join('')}</div>`;
+  try {
+    const resp = await fetch(`/api/stock/${encodeURIComponent(sym)}/guru-holders`);
+    const holders = await resp.json();
+    if (!holders.length) {
+      containerEl.innerHTML = '<div class="guru-empty">Not found in any disclosed 13F portfolio</div>';
+      return;
+    }
+    containerEl.innerHTML = holders.map(h => `
+      <div class="guru-card" title="${h.name} — ${h.firm}\n${h.portPct}% of portfolio · $${h.valueMn.toFixed(0)}M" onclick="switchTab('smartmoney'); setTimeout(()=>loadSmDetail('${h.slug}'),300)">
+        ${h.photo
+          ? `<img class="guru-photo" src="${h.photo}" alt="${h.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+          : ''}
+        <div class="guru-initials" style="background:${h.color};display:${h.photo?'none':'flex'}">${h.name.split(' ').map(w=>w[0]).slice(0,2).join('')}</div>
+        <div class="guru-name">${h.name.split(' ')[1]||h.name.split(' ')[0]}</div>
+        <div class="guru-pos">
+          <span class="guru-signal-dot" style="background:${{new:'#22c55e',added:'#3b82f6',reduced:'#ef4444',held:'#94a3b8'}[h.signal]||'#94a3b8'}"></span>
+          ${h.portPct}%
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    containerEl.innerHTML = '<div class="guru-empty">Guru data unavailable</div>';
+  }
 }
 
 </script>

@@ -2212,12 +2212,126 @@ _SM_CACHE: dict = {}
 _SM_TTL = 86400  # 24 hours — 13F data is quarterly
 
 _INVESTORS = {
-    "berkshire": {"name":"Warren Buffett","firm":"Berkshire Hathaway","cik":"0001067983","style":"Value","emoji":"🎩","color":"#3b82f6","bio":"Legendary value investor; long-term positions in moat businesses"},
-    "ackman":    {"name":"Bill Ackman",   "firm":"Pershing Square",   "cik":"0001336528","style":"Activist","emoji":"⚡","color":"#8b5cf6","bio":"Concentrated activist; high-conviction ideas with public advocacy"},
-    "burry":     {"name":"Michael Burry", "firm":"Scion Asset Mgmt",  "cik":"0001649339","style":"Contrarian","emoji":"🔮","color":"#ef4444","bio":"Deep value contrarian; famous for The Big Short"},
-    "dalio":     {"name":"Ray Dalio",     "firm":"Bridgewater",       "cik":"0001350694","style":"Macro","emoji":"🌊","color":"#10b981","bio":"All-weather macro fund; diversified across asset classes"},
-    "simons":    {"name":"Jim Simons",    "firm":"Renaissance Tech",  "cik":"0001037389","style":"Quant","emoji":"🤖","color":"#f59e0b","bio":"Pure quantitative hedge fund; thousands of positions"},
-    "tiger":     {"name":"Chase Coleman","firm":"Tiger Global",       "cik":"0001167483","style":"Growth","emoji":"🐯","color":"#06b6d4","bio":"Tech-focused growth investor; private and public equities"},
+    "buffett": {
+        "name":"Warren Buffett","firm":"Berkshire Hathaway","cik":"0001067983",
+        "style":"Value","emoji":"🎩","color":"#3b82f6",
+        "bio":"The Oracle of Omaha — long-term value investing in moat businesses",
+        "photo":"https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Warren_Buffett_KU_Visit.jpg/200px-Warren_Buffett_KU_Visit.jpg",
+    },
+    "ackman": {
+        "name":"Bill Ackman","firm":"Pershing Square","cik":"0001336528",
+        "style":"Activist","emoji":"⚡","color":"#8b5cf6",
+        "bio":"High-conviction activist investor; concentrated positions with public advocacy",
+        "photo":"https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Bill_Ackman_%282015%29.jpg/200px-Bill_Ackman_%282015%29.jpg",
+    },
+    "burry": {
+        "name":"Michael Burry","firm":"Scion Asset Mgmt","cik":"0001649339",
+        "style":"Contrarian","emoji":"🔮","color":"#ef4444",
+        "bio":"Deep value contrarian famous for The Big Short; concentrated bearish bets",
+        "photo":"",
+    },
+    "dalio": {
+        "name":"Ray Dalio","firm":"Bridgewater","cik":"0001350694",
+        "style":"Macro","emoji":"🌊","color":"#10b981",
+        "bio":"All-weather macro fund; diversified across asset classes and geographies",
+        "photo":"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Ray_Dalio_2019.jpg/200px-Ray_Dalio_2019.jpg",
+    },
+    "simons": {
+        "name":"Jim Simons","firm":"Renaissance Tech","cik":"0001037389",
+        "style":"Quant","emoji":"🤖","color":"#f59e0b",
+        "bio":"Pioneered quantitative investing; Medallion Fund is the greatest in history",
+        "photo":"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Jim_Simons.jpg/200px-Jim_Simons.jpg",
+    },
+    "coleman": {
+        "name":"Chase Coleman","firm":"Tiger Global","cik":"0001167483",
+        "style":"Growth","emoji":"🐯","color":"#06b6d4",
+        "bio":"Tech-focused growth investor; major force in private and public tech",
+        "photo":"",
+    },
+    "druckenmiller": {
+        "name":"Stan Druckenmiller","firm":"Duquesne Family Office","cik":"0001536411",
+        "style":"Macro","emoji":"📊","color":"#f97316",
+        "bio":"30+ years without a losing year; macro discretionary with asymmetric bets",
+        "photo":"",
+    },
+    "soros": {
+        "name":"George Soros","firm":"Soros Fund Mgmt","cik":"0001029160",
+        "style":"Macro","emoji":"🦅","color":"#64748b",
+        "bio":"Broke the Bank of England; global macro legend and reflexivity theorist",
+        "photo":"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/George_Soros_-_Festival_Economia_2012_3.jpg/200px-George_Soros_-_Festival_Economia_2012_3.jpg",
+    },
+    "loeb": {
+        "name":"Daniel Loeb","firm":"Third Point","cik":"0001040273",
+        "style":"Activist","emoji":"🗡️","color":"#a855f7",
+        "bio":"Shareholder activist with aggressive public letters; event-driven value",
+        "photo":"",
+    },
+    "halvorsen": {
+        "name":"Andreas Halvorsen","firm":"Viking Global","cik":"0001103804",
+        "style":"Long/Short","emoji":"⚔️","color":"#0891b2",
+        "bio":"Tiger Cub running one of the world's best-performing long/short equity funds",
+        "photo":"",
+    },
+    "klarman": {
+        "name":"Seth Klarman","firm":"Baupost Group","cik":"0001061768",
+        "style":"Value","emoji":"📖","color":"#059669",
+        "bio":"Author of Margin of Safety; secretive deep value investor with 30% cash buffer",
+        "photo":"",
+    },
+    "icahn": {
+        "name":"Carl Icahn","firm":"Icahn Capital","cik":"0000921669",
+        "style":"Activist","emoji":"🦁","color":"#dc2626",
+        "bio":"Corporate raider turned activist; forces change at underperforming companies",
+        "photo":"https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Carl_Icahn_2012.jpg/200px-Carl_Icahn_2012.jpg",
+    },
+    "laffont": {
+        "name":"Philippe Laffont","firm":"Coatue Mgmt","cik":"0001135730",
+        "style":"Growth","emoji":"💻","color":"#7c3aed",
+        "bio":"Tiger Cub focused on TMT; combines fundamental research with quant signals",
+        "photo":"",
+    },
+    "ainslie": {
+        "name":"Lee Ainslie","firm":"Lone Pine Capital","cik":"0001061165",
+        "style":"Long/Short","emoji":"🌲","color":"#16a34a",
+        "bio":"Tiger Cub with disciplined long/short approach in global equities",
+        "photo":"",
+    },
+    "sundheim": {
+        "name":"Dan Sundheim","firm":"D1 Capital","cik":"0001747057",
+        "style":"Long/Short","emoji":"🎯","color":"#0284c7",
+        "bio":"Viking alumni running concentrated long/short with private co-investments",
+        "photo":"",
+    },
+    "greenblatt": {
+        "name":"Joel Greenblatt","firm":"Gotham Asset Mgmt","cik":"0001510387",
+        "style":"Value","emoji":"✨","color":"#d97706",
+        "bio":"Magic Formula investing; systematic value with 40%+ annual returns at Gotham",
+        "photo":"",
+    },
+    "tepper": {
+        "name":"David Tepper","firm":"Appaloosa Mgmt","cik":"0001656456",
+        "style":"Value","emoji":"🏆","color":"#b45309",
+        "bio":"Distressed debt legend; made $7B in 2009 crisis. Now owns Carolina Panthers",
+        "photo":"",
+    },
+    "einhorn": {
+        "name":"David Einhorn","firm":"Greenlight Capital","cik":"0001079114",
+        "style":"Long/Short","emoji":"💡","color":"#15803d",
+        "bio":"Known for shorting Lehman before its collapse; value-oriented long/short",
+        "photo":"",
+    },
+    "ubben": {
+        "name":"Jeffrey Ubben","firm":"ValueAct Capital","cik":"0001418814",
+        "style":"Activist","emoji":"🌿","color":"#0d9488",
+        "bio":"Constructive activist focused on ESG-linked value creation over 3-5 years",
+        "photo":"",
+    },
+    "baker": {
+        "name":"Julian Baker","firm":"Baker Bros. Advisors","cik":"0001263508",
+        "style":"Healthcare","emoji":"🧬","color":"#e11d48",
+        "bio":"Life sciences specialists; concentrated biotech/pharma from early stage",
+        "photo":"",
+    },
 }
 
 def _edgar_get(url: str) -> bytes:
@@ -2389,6 +2503,94 @@ def smart_money_detail(slug: str):
             "period": "unavailable", "totalValueMn": 0, "positionCount": 0,
             "holdings": [], "error": str(exc)
         }), 200
+
+
+@app.route("/api/stock/<symbol>/guru-holders")
+def stock_guru_holders(symbol: str):
+    """
+    Returns list of famous investors who hold this stock in their latest 13F.
+    Triggers background fetch of any uncached investors.
+    """
+    sym_upper = symbol.upper().replace(".TA", "").replace("-", " ")
+    # Also try common name variations
+    sym_variants = {sym_upper, symbol.upper()}
+
+    results = []
+    now = time.time()
+
+    for slug, inv in _INVESTORS.items():
+        cached = _SM_CACHE.get(slug)
+        if not cached or now - cached["ts"] > _SM_TTL:
+            # Try to fetch this investor's holdings (with timeout)
+            try:
+                cur, prior, period = _fetch_13f_holdings(inv["cik"])
+                if cur:
+                    response = _build_response(slug, cur, prior, period)
+                    _SM_CACHE[slug] = {"ts": now, "data": response}
+                    cached = _SM_CACHE[slug]
+            except Exception as exc:
+                logger.warning(f"guru-holders: fetch failed for {slug}: {exc}")
+                continue
+
+        if not cached:
+            continue
+
+        holdings = cached["data"].get("holdings", [])
+
+        # Search for the symbol in holdings by name match
+        for h in holdings:
+            name_upper = h["name"].upper()
+            # Match: exact ticker, or name contains symbol, or symbol contains key name words
+            matched = (
+                sym_upper in name_upper or
+                any(v in name_upper for v in sym_variants) or
+                # Handle common cases: AAPL -> APPLE, TSLA -> TESLA, AMZN -> AMAZON
+                _sm_name_match(sym_upper, name_upper)
+            )
+            if matched:
+                results.append({
+                    "slug": slug,
+                    "name": inv["name"],
+                    "firm": inv["firm"],
+                    "style": inv["style"],
+                    "emoji": inv["emoji"],
+                    "color": inv["color"],
+                    "photo": inv.get("photo", ""),
+                    "valueMn": h["valueMn"],
+                    "portPct": h["portPct"],
+                    "shares": h["shares"],
+                    "signal": h["signal"],
+                    "changePct": h.get("changePct"),
+                })
+                break  # Only one entry per investor
+
+    # Sort by portfolio percentage (largest holder first)
+    results.sort(key=lambda x: x["portPct"], reverse=True)
+    return jsonify(results)
+
+
+def _sm_name_match(ticker: str, holding_name: str) -> bool:
+    """Map common ticker symbols to company name fragments for 13F matching."""
+    ticker_to_name = {
+        "AAPL": "APPLE", "MSFT": "MICROSOFT", "GOOGL": "ALPHABET", "GOOG": "ALPHABET",
+        "AMZN": "AMAZON", "META": "META", "TSLA": "TESLA", "NVDA": "NVIDIA",
+        "JPM": "JPMORGAN", "BAC": "BANK OF AMERICA", "WFC": "WELLS FARGO",
+        "BRK": "BERKSHIRE", "V": "VISA", "MA": "MASTERCARD", "UNH": "UNITEDHEALTH",
+        "JNJ": "JOHNSON", "PG": "PROCTER", "HD": "HOME DEPOT", "DIS": "DISNEY",
+        "NFLX": "NETFLIX", "UBER": "UBER", "LYFT": "LYFT", "ABNB": "AIRBNB",
+        "PLTR": "PALANTIR", "CRWD": "CROWDSTRIKE", "DDOG": "DATADOG",
+        "CRM": "SALESFORCE", "NOW": "SERVICENOW", "SNOW": "SNOWFLAKE",
+        "COST": "COSTCO", "WMT": "WALMART", "TGT": "TARGET",
+        "LLY": "ELI LILLY", "PFE": "PFIZER", "MRNA": "MODERNA",
+        "XOM": "EXXON", "CVX": "CHEVRON", "COP": "CONOCOPHILLIPS",
+        "GLD": "GOLD", "SPY": "S&P", "QQQ": "NASDAQ",
+        "HOOD": "ROBINHOOD", "COIN": "COINBASE", "MSTR": "MICROSTRATEGY",
+        "ARM": "ARM HOLDINGS", "AVGO": "BROADCOM", "AMD": "ADVANCED MICRO",
+        "ORCL": "ORACLE", "ADBE": "ADOBE", "INTC": "INTEL",
+        "CHKP": "CHECK POINT", "NICE": "NICE", "MNDY": "MONDAY",
+    }
+    mapped = ticker_to_name.get(ticker, "")
+    return bool(mapped and mapped in holding_name)
 
 
 print(f"Stock backend v2 (yfinance) | pid={os.getpid()} | node={os.environ.get('NODE_NAME','')} | ip={os.environ.get('POD_IP','')}", flush=True)
