@@ -253,6 +253,39 @@
     .auth-forgot { text-align:right; margin-top:-8px; margin-bottom:12px; }
     .auth-forgot a { font-size:12px; color:var(--text-muted); text-decoration:none; }
     .auth-forgot a:hover { color:var(--accent); }
+    /* ── Smart Money ─────────────────────────────────────────────────── */
+    .sm-header { margin-bottom:16px; }
+    .sm-investor-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+    @media(max-width:900px){ .sm-investor-grid { grid-template-columns:repeat(2,1fr); } }
+    @media(max-width:600px){ .sm-investor-grid { grid-template-columns:1fr; } }
+    .sm-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:16px; cursor:pointer; transition:border-color .15s,transform .15s; }
+    .sm-card:hover { transform:translateY(-2px); border-color:var(--accent); }
+    .sm-card-top { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+    .sm-emoji { font-size:28px; }
+    .sm-card-name { font-size:13px; font-weight:700; color:var(--text-primary); }
+    .sm-card-firm { font-size:11px; color:var(--text-muted); }
+    .sm-style-badge { display:inline-block; font-size:10px; font-weight:600; padding:2px 8px; border-radius:10px; margin-top:3px; }
+    .sm-bio { font-size:11px; color:var(--text-muted); margin-bottom:10px; line-height:1.5; }
+    .sm-card-stats { display:flex; gap:14px; margin-bottom:10px; }
+    .sm-stat-val { font-size:14px; font-weight:700; color:var(--text-primary); }
+    .sm-stat-lbl { font-size:10px; color:var(--text-muted); }
+    .sm-top3 { display:flex; flex-direction:column; gap:4px; }
+    .sm-top3-item { display:flex; justify-content:space-between; align-items:center; font-size:11px; }
+    .sm-top3-name { color:var(--text-secondary); }
+    .sm-top3-pct { font-weight:600; color:var(--text-primary); }
+    .sm-signal { font-size:10px; font-weight:600; padding:1px 6px; border-radius:8px; }
+    .sm-signal-new      { background:rgba(34,197,94,.15); color:#22c55e; }
+    .sm-signal-added    { background:rgba(59,130,246,.15); color:#3b82f6; }
+    .sm-signal-reduced  { background:rgba(239,68,68,.15);  color:#ef4444; }
+    .sm-signal-held     { background:rgba(100,116,139,.15);color:#94a3b8; }
+    .sm-signal-exited   { background:rgba(239,68,68,.2);   color:#ef4444; }
+    .sm-detail-header { display:flex; align-items:center; margin-bottom:16px; }
+    .sm-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .sm-table th { text-align:left; padding:8px 10px; font-size:11px; font-weight:600; color:var(--text-muted); border-bottom:1px solid var(--border); }
+    .sm-table td { padding:9px 10px; border-bottom:1px solid var(--border); color:var(--text-primary); }
+    .sm-table tr:hover td { background:var(--bg-hover,rgba(255,255,255,.03)); }
+    .sm-load-btn { width:100%; padding:8px; background:none; border:1px solid var(--border); border-radius:8px; color:var(--text-muted); font-size:12px; cursor:pointer; margin-top:8px; }
+    .sm-load-btn:hover { border-color:var(--accent); color:var(--accent); }
     /* ── Earnings Whisper Widget ─────────────────────────────────────── */
     .ew-widget { background:var(--bg-card,#1e293b); border:1px solid var(--border-lit,#334155); border-radius:12px; padding:16px; margin-bottom:12px; }
     .ew-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted,#64748b); margin-bottom:12px; display:flex; align-items:center; gap:6px; }
@@ -1836,6 +1869,7 @@
       <button class="tab-btn active" data-tab="overview">Overview</button>
       <button class="tab-btn" data-tab="analysis" id="analysisTabBtn">Analysis</button>
       <button class="tab-btn" data-tab="screener">Screener</button>
+      <button class="tab-btn" data-tab="smartmoney">Smart Money</button>
     </div>
 
     <!-- Overview Tab -->
@@ -1893,6 +1927,30 @@
         </select>
       </div>
       <div id="screenerResults"></div>
+    </div>
+
+    <!-- Smart Money Tab -->
+    <div class="tab-panel" id="tab-smartmoney">
+      <div class="sm-header">
+        <div class="section-label">Smart Money — Institutional 13F Disclosures</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Quarterly mandatory SEC filings · Updated within 24h of new filing</div>
+      </div>
+      <div id="smInvestorGrid" class="sm-investor-grid">
+        <div class="shimmer-box" style="height:140px;border-radius:12px"></div>
+        <div class="shimmer-box" style="height:140px;border-radius:12px"></div>
+        <div class="shimmer-box" style="height:140px;border-radius:12px"></div>
+        <div class="shimmer-box" style="height:140px;border-radius:12px"></div>
+        <div class="shimmer-box" style="height:140px;border-radius:12px"></div>
+        <div class="shimmer-box" style="height:140px;border-radius:12px"></div>
+      </div>
+      <div id="smDetailPanel" style="display:none;margin-top:20px">
+        <div class="sm-detail-header">
+          <button onclick="closeSmDetail()" class="period-btn" style="margin-right:12px">← Back</button>
+          <span id="smDetailTitle" style="font-size:15px;font-weight:700"></span>
+          <span id="smDetailPeriod" style="font-size:11px;color:var(--text-muted);margin-left:10px"></span>
+        </div>
+        <div id="smDetailTable"></div>
+      </div>
     </div>
 
   </main>
@@ -3772,6 +3830,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     switchTab(btn.dataset.tab);
     if (btn.dataset.tab === 'screener') runScreener();
+    if (btn.dataset.tab === 'smartmoney') loadSmartMoney();
   });
 });
 
@@ -4739,6 +4798,88 @@ const AuthManager = (function() {
 
 document.addEventListener('DOMContentLoaded', () => AuthManager.init());
 if (document.readyState !== 'loading') AuthManager.init();
+
+// ── Smart Money ──────────────────────────────────────────────────────────────
+async function loadSmartMoney() {
+  const grid = document.getElementById('smInvestorGrid');
+  if (!grid) return;
+  try {
+    const resp = await fetch('/api/smart-money');
+    const investors = await resp.json();
+    grid.innerHTML = investors.map(inv => `
+      <div class="sm-card" onclick="loadSmDetail('${inv.slug}')" style="border-top:3px solid ${inv.color}">
+        <div class="sm-card-top">
+          <span class="sm-emoji">${inv.emoji}</span>
+          <div>
+            <div class="sm-card-name">${inv.name}</div>
+            <div class="sm-card-firm">${inv.firm}</div>
+            <span class="sm-style-badge" style="background:${inv.color}22;color:${inv.color}">${inv.style}</span>
+          </div>
+        </div>
+        <div class="sm-bio">${inv.bio}</div>
+        ${inv.totalValueMn > 0 ? `
+        <div class="sm-card-stats">
+          <div><div class="sm-stat-val">$${(inv.totalValueMn/1000).toFixed(1)}B</div><div class="sm-stat-lbl">AUM disclosed</div></div>
+          <div><div class="sm-stat-val">${inv.positionCount}</div><div class="sm-stat-lbl">positions</div></div>
+          ${inv.period ? `<div><div class="sm-stat-val">${inv.period.slice(0,7)}</div><div class="sm-stat-lbl">as of</div></div>` : ''}
+        </div>
+        <div class="sm-top3">
+          ${(inv.top3||[]).map(h => `
+            <div class="sm-top3-item">
+              <span class="sm-top3-name">${h.name}</span>
+              <span class="sm-top3-pct">${h.portPct}%</span>
+            </div>
+          `).join('')}
+        </div>` : `<div class="sm-load-btn" onclick="event.stopPropagation();loadSmDetail('${inv.slug}')">Load holdings →</div>`}
+      </div>
+    `).join('');
+  } catch(e) {
+    grid.innerHTML = '<div style="color:var(--text-muted);font-size:13px">Unable to load institutional data</div>';
+  }
+}
+
+async function loadSmDetail(slug) {
+  document.getElementById('smInvestorGrid').style.display = 'none';
+  const panel = document.getElementById('smDetailPanel');
+  panel.style.display = 'block';
+  document.getElementById('smDetailTitle').textContent = 'Loading…';
+  document.getElementById('smDetailTable').innerHTML = '<div class="shimmer-box" style="height:300px;border-radius:8px"></div>';
+
+  try {
+    const resp = await fetch(`/api/smart-money/${slug}`);
+    const d = await resp.json();
+    document.getElementById('smDetailTitle').textContent = `${d.emoji} ${d.name} — ${d.firm}`;
+    document.getElementById('smDetailPeriod').textContent = d.period ? `Q${Math.ceil(new Date(d.period).getMonth()/3)} ${new Date(d.period).getFullYear()} · $${(d.totalValueMn/1000).toFixed(1)}B · ${d.positionCount} positions` : '';
+
+    const sigMap = { new:'★ New', added:'↑ Added', reduced:'↓ Reduced', held:'— Held', exited:'✗ Exited' };
+    document.getElementById('smDetailTable').innerHTML = `
+      <table class="sm-table">
+        <thead><tr>
+          <th>#</th><th>Company</th><th>Shares</th><th>Value ($M)</th><th>% Portfolio</th><th>vs Last Q</th>
+        </tr></thead>
+        <tbody>
+          ${(d.holdings||[]).map((h,i) => `
+            <tr>
+              <td style="color:var(--text-muted)">${i+1}</td>
+              <td style="font-weight:600">${h.name}</td>
+              <td>${h.shares ? h.shares.toLocaleString() : '—'}</td>
+              <td>$${h.valueMn.toFixed(1)}M</td>
+              <td>${h.portPct}%</td>
+              <td><span class="sm-signal sm-signal-${h.signal}">${sigMap[h.signal]||h.signal}${h.changePct && Math.abs(h.changePct)>0.5 ? ' '+Math.abs(h.changePct)+'%' : ''}</span></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  } catch(e) {
+    document.getElementById('smDetailTable').innerHTML = '<div style="color:var(--text-muted);padding:20px">Failed to load holdings data</div>';
+  }
+}
+
+function closeSmDetail() {
+  document.getElementById('smDetailPanel').style.display = 'none';
+  document.getElementById('smInvestorGrid').style.display = 'grid';
+}
 
 </script>
 </body>

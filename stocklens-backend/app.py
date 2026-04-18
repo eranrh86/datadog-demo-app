@@ -2200,5 +2200,196 @@ def stock_social_sentiment(symbol):
         })
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# SMART MONEY — SEC 13F Institutional Holdings Tracker
+# ═══════════════════════════════════════════════════════════════════════════════
+import urllib.error as _uerr
+import xml.etree.ElementTree as _ET
+import re as _re
+
+_SM_UA = "Kestrel/1.0 eran.rahmani@datadog.com"
+_SM_CACHE: dict = {}
+_SM_TTL = 86400  # 24 hours — 13F data is quarterly
+
+_INVESTORS = {
+    "berkshire": {"name":"Warren Buffett","firm":"Berkshire Hathaway","cik":"0001067983","style":"Value","emoji":"🎩","color":"#3b82f6","bio":"Legendary value investor; long-term positions in moat businesses"},
+    "ackman":    {"name":"Bill Ackman",   "firm":"Pershing Square",   "cik":"0001336528","style":"Activist","emoji":"⚡","color":"#8b5cf6","bio":"Concentrated activist; high-conviction ideas with public advocacy"},
+    "burry":     {"name":"Michael Burry", "firm":"Scion Asset Mgmt",  "cik":"0001649339","style":"Contrarian","emoji":"🔮","color":"#ef4444","bio":"Deep value contrarian; famous for The Big Short"},
+    "dalio":     {"name":"Ray Dalio",     "firm":"Bridgewater",       "cik":"0001350694","style":"Macro","emoji":"🌊","color":"#10b981","bio":"All-weather macro fund; diversified across asset classes"},
+    "simons":    {"name":"Jim Simons",    "firm":"Renaissance Tech",  "cik":"0001037389","style":"Quant","emoji":"🤖","color":"#f59e0b","bio":"Pure quantitative hedge fund; thousands of positions"},
+    "tiger":     {"name":"Chase Coleman","firm":"Tiger Global",       "cik":"0001167483","style":"Growth","emoji":"🐯","color":"#06b6d4","bio":"Tech-focused growth investor; private and public equities"},
+}
+
+def _edgar_get(url: str) -> bytes:
+    req = _ureq.Request(url, headers={"User-Agent": _SM_UA, "Accept": "application/json,text/html,*/*"})
+    with _ureq.urlopen(req, timeout=10) as r:
+        return r.read()
+
+def _fetch_13f_holdings(cik: str) -> tuple:
+    """Returns (current_holdings_dict, prior_holdings_dict, period_str) keyed by nameOfIssuer."""
+    cik_padded = cik.replace("CIK","")
+    cik_num    = int(cik_padded)  # numeric for archive URL
+
+    # 1. Get submissions list
+    sub_url = f"https://data.sec.gov/submissions/CIK{cik_padded}.json"
+    sub_data = json.loads(_edgar_get(sub_url))
+
+    recent  = sub_data.get("filings", {}).get("recent", {})
+    forms   = recent.get("form", [])
+    dates   = recent.get("filingDate", [])
+    acc_nums= recent.get("accessionNumber", [])
+
+    # Find 2 most recent 13F-HR filings for QoQ comparison
+    filings_13f = [(dates[i], acc_nums[i]) for i, f in enumerate(forms) if f == "13F-HR"][:2]
+    if not filings_13f:
+        return {}, {}, ""
+
+    def _parse_infotable(date_str: str, acc: str) -> tuple:
+        acc_clean = acc.replace("-", "")
+        # Get directory index
+        idx_url = f"https://www.sec.gov/Archives/edgar/data/{cik_num}/{acc_clean}/"
+        idx_html = _edgar_get(idx_url).decode("utf-8", errors="replace")
+        # Find InfoTable XML filename
+        xml_match = _re.search(r'href="([^"]*infotable[^"]*\.xml)"', idx_html, _re.IGNORECASE)
+        if not xml_match:
+            # Try primary document pattern
+            xml_match = _re.search(r'href="([^"]*\.xml)"', idx_html, _re.IGNORECASE)
+        if not xml_match:
+            return date_str, {}
+        xml_file = xml_match.group(1).lstrip("/")
+        if not xml_file.startswith("Archives"):
+            xml_url = f"https://www.sec.gov/Archives/edgar/data/{cik_num}/{acc_clean}/{xml_file.split('/')[-1]}"
+        else:
+            xml_url = "https://www.sec.gov/" + xml_file
+
+        xml_bytes = _edgar_get(xml_url)
+        holdings  = {}
+        try:
+            root = _ET.fromstring(xml_bytes)
+            ns = {"ns": "http://www.sec.gov/edgar/document/thirteenf/informationtable"}
+            # Try namespaced parse first
+            entries = root.findall(".//ns:infoTable", ns)
+            if not entries:
+                # Fallback: namespace-agnostic
+                entries = root.findall(".//{*}infoTable") or root.findall(".//infoTable")
+            for entry in entries:
+                def _txt(tag):
+                    for ns_try in [f"{{http://www.sec.gov/edgar/document/thirteenf/informationtable}}{tag}", f"{{{''}}}{tag}", tag]:
+                        el = entry.find(ns_try)
+                        if el is not None and el.text: return el.text.strip()
+                    return ""
+                name   = _txt("nameOfIssuer")
+                shares_txt = _txt("sshPrnamt") or _txt("shares")
+                value_txt  = _txt("value")
+                if not name: continue
+                shares = int(shares_txt.replace(",","")) if shares_txt else 0
+                value  = int(value_txt.replace(",","")) if value_txt else 0  # in $thousands
+                holdings[name.upper()] = {"shares": shares, "valueMn": round(value / 1000, 1)}
+        except Exception as exc:
+            logger.warning(f"13F XML parse error cik={cik} acc={acc}: {exc}")
+        return date_str, holdings
+
+    cur_date, cur = _parse_infotable(*filings_13f[0])
+    prior = {}
+    if len(filings_13f) > 1:
+        _, prior = _parse_infotable(*filings_13f[1])
+
+    return cur, prior, cur_date
+
+
+def _build_response(slug: str, cur: dict, prior: dict, period: str) -> dict:
+    inv = _INVESTORS[slug]
+    total = sum(h["valueMn"] for h in cur.values())
+    holdings = []
+    for name, h in cur.items():
+        prev = prior.get(name)
+        if prev is None:
+            signal, chg = "new", None
+        else:
+            delta = h["shares"] - prev["shares"]
+            pct   = round(delta / prev["shares"] * 100, 1) if prev["shares"] else 0
+            if   abs(pct) < 1: signal, chg = "held", 0
+            elif pct > 0:      signal, chg = "added", pct
+            else:              signal, chg = "reduced", pct
+        port_pct = round(h["valueMn"] / total * 100, 2) if total else 0
+        holdings.append({
+            "name": name.title(),
+            "ticker": "",  # best-effort resolved client-side from symbol list
+            "shares": h["shares"],
+            "valueMn": h["valueMn"],
+            "portPct": port_pct,
+            "signal": signal,
+            "changePct": chg,
+        })
+    holdings.sort(key=lambda x: x["valueMn"], reverse=True)
+    return {
+        "slug": slug, **{k: inv[k] for k in ("name","firm","style","emoji","color","bio")},
+        "period": period,
+        "totalValueMn": round(total, 1),
+        "positionCount": len(holdings),
+        "holdings": holdings[:50],
+    }
+
+
+@app.route("/api/smart-money")
+def smart_money_list():
+    now = time.time()
+    cached = _SM_CACHE.get("__list__")
+    if cached and now - cached["ts"] < _SM_TTL:
+        return jsonify(cached["data"])
+
+    results = []
+    for slug, inv in _INVESTORS.items():
+        # Return lightweight summary from cache or minimal data
+        c = _SM_CACHE.get(slug)
+        if c and now - c["ts"] < _SM_TTL:
+            d = c["data"]
+            results.append({
+                "slug": slug, "name": inv["name"], "firm": inv["firm"],
+                "style": inv["style"], "emoji": inv["emoji"], "color": inv["color"], "bio": inv["bio"],
+                "period": d.get("period",""), "totalValueMn": d.get("totalValueMn",0),
+                "positionCount": d.get("positionCount",0),
+                "top3": d.get("holdings",[])[:3],
+            })
+        else:
+            results.append({
+                "slug": slug, "name": inv["name"], "firm": inv["firm"],
+                "style": inv["style"], "emoji": inv["emoji"], "color": inv["color"], "bio": inv["bio"],
+                "period": "", "totalValueMn": 0, "positionCount": 0, "top3": [],
+            })
+
+    _SM_CACHE["__list__"] = {"ts": now, "data": results}
+    return jsonify(results)
+
+
+@app.route("/api/smart-money/<slug>")
+def smart_money_detail(slug: str):
+    slug = slug.lower().strip()
+    if slug not in _INVESTORS:
+        return jsonify({"error": f"Unknown investor slug: {slug}"}), 404
+
+    now = time.time()
+    cached = _SM_CACHE.get(slug)
+    if cached and now - cached["ts"] < _SM_TTL:
+        return jsonify(cached["data"])
+
+    try:
+        cur, prior, period = _fetch_13f_holdings(_INVESTORS[slug]["cik"])
+        if not cur:
+            raise ValueError("No holdings parsed from 13F filing")
+        result = _build_response(slug, cur, prior, period)
+        _SM_CACHE[slug] = {"ts": now, "data": result}
+        return jsonify(result)
+    except Exception as exc:
+        logger.error(f"Smart money fetch failed slug={slug}: {exc}")
+        # Return informative error with investor metadata
+        inv = _INVESTORS[slug]
+        return jsonify({
+            "slug": slug, **{k: inv[k] for k in ("name","firm","style","emoji","color","bio")},
+            "period": "unavailable", "totalValueMn": 0, "positionCount": 0,
+            "holdings": [], "error": str(exc)
+        }), 200
+
+
 print(f"Stock backend v2 (yfinance) | pid={os.getpid()} | node={os.environ.get('NODE_NAME','')} | ip={os.environ.get('POD_IP','')}", flush=True)
 app.run(host="0.0.0.0", port=8080, threaded=True)
