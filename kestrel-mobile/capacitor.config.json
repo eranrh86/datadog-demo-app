@@ -1,0 +1,12 @@
+{
+  "appId": "com.kestrel.app",
+  "appName": "Kestrel",
+  "webDir": "www",
+  "server": {
+    "url": "https://kestrel.ddtsre.com",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

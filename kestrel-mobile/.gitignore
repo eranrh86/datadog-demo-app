@@ -1,0 +1,10 @@
+node_modules/
+android/build/
+android/.gradle/
+android/app/build/
+ios/build/
+ios/DerivedData/
+*.apk
+*.ipa
+*.app
+.DS_Store
