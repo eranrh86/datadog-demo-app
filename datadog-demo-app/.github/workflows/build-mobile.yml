@@ -1,0 +1,172 @@
+name: Build Kestrel Mobile Apps
+
+on:
+  push:
+    branches: [claude/sad-wing]
+    paths: ['kestrel-mobile/**']
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  # ── Android APK ────────────────────────────────────────────────────────────
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: kestrel-mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: kestrel-mobile
+        run: npm ci
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform tools
+        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Sync Capacitor
+        working-directory: kestrel-mobile
+        run: npx cap sync android
+
+      - name: Build Release APK
+        working-directory: kestrel-mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Sign APK
+        run: |
+          # Create keystore
+          keytool -genkeypair -v \
+            -keystore /tmp/kestrel.keystore \
+            -alias kestrel \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass kestrel123 -keypass kestrel123 \
+            -dname "CN=Kestrel App, OU=Engineering, O=Kestrel, L=TLV, S=IL, C=IL"
+          # Sign
+          $ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner sign \
+            --ks /tmp/kestrel.keystore \
+            --ks-alias kestrel \
+            --ks-pass pass:kestrel123 \
+            --key-pass pass:kestrel123 \
+            --out kestrel-mobile/android/app/build/outputs/apk/release/kestrel-release-signed.apk \
+            kestrel-mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kestrel-android-apk
+          path: kestrel-mobile/android/app/build/outputs/apk/release/kestrel-release-signed.apk
+          retention-days: 30
+
+  # ── iOS IPA ────────────────────────────────────────────────────────────────
+  build-ios:
+    name: Build iOS IPA
+    runs-on: macos-15  # Has Xcode 16
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: kestrel-mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: kestrel-mobile
+        run: npm ci
+
+      - name: Add iOS platform
+        working-directory: kestrel-mobile
+        run: |
+          npm install @capacitor/ios
+          npx cap add ios || true  # 'already exists' is fine
+
+      - name: Sync Capacitor
+        working-directory: kestrel-mobile
+        run: npx cap sync ios
+
+      - name: Update iOS app display name and bundle ID
+        working-directory: kestrel-mobile/ios/App
+        run: |
+          # Set bundle identifier and display name via sed on project.pbxproj
+          sed -i '' 's/PRODUCT_BUNDLE_IDENTIFIER = .*/PRODUCT_BUNDLE_IDENTIFIER = com.kestrel.app;/g' App.xcodeproj/project.pbxproj
+          sed -i '' 's/PRODUCT_NAME = .*/PRODUCT_NAME = Kestrel;/g' App.xcodeproj/project.pbxproj || true
+
+      - name: Build iOS app (simulator — no signing required)
+        working-directory: kestrel-mobile/ios/App
+        run: |
+          xcodebuild \
+            -scheme App \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath /tmp/kestrel-build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            build
+
+      - name: Package simulator build as IPA
+        run: |
+          # Find the .app bundle
+          APP_PATH=$(find /tmp/kestrel-build -name "App.app" -type d | head -1)
+          echo "App found at: $APP_PATH"
+
+          # Create Payload structure
+          mkdir -p /tmp/kestrel-payload/Payload
+          cp -r "$APP_PATH" /tmp/kestrel-payload/Payload/Kestrel.app
+
+          # Rename binary
+          mv /tmp/kestrel-payload/Payload/Kestrel.app/App \
+             /tmp/kestrel-payload/Payload/Kestrel.app/Kestrel 2>/dev/null || true
+
+          # Zip into IPA
+          cd /tmp/kestrel-payload
+          zip -r /tmp/kestrel.ipa Payload/
+          echo "IPA size: $(du -sh /tmp/kestrel.ipa | cut -f1)"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kestrel-ios-ipa
+          path: /tmp/kestrel.ipa
+          retention-days: 30
+
+  # ── Summary ────────────────────────────────────────────────────────────────
+  summary:
+    name: Build Summary
+    needs: [build-android, build-ios]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Print artifact locations
+        run: |
+          echo "============================================"
+          echo "  Kestrel Mobile Build Complete"
+          echo "============================================"
+          echo ""
+          echo "Android APK: Download from Actions > Artifacts > kestrel-android-apk"
+          echo "iOS IPA:     Download from Actions > Artifacts > kestrel-ios-ipa"
+          echo ""
+          echo "Datadog Synthetic Mobile Test setup:"
+          echo "  1. Go to Datadog > Synthetic Monitoring > Mobile App Tests"
+          echo "  2. Click 'New Application'"
+          echo "  3. Upload APK (Android) or IPA (iOS)"
+          echo "  4. Record test steps on kestrel.ddtsre.com"
+          echo "============================================"
