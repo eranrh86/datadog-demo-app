@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datadog-demo-app
+  namespace: datadog-demo
+  labels:
+    app: datadog-demo-app
+    version: v1.0.0
+    tags.datadoghq.com/service: datadog-demo-app
+    tags.datadoghq.com/env: demo
+    tags.datadoghq.com/version: "1.0.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: datadog-demo-app
+  template:
+    metadata:
+      labels:
+        app: datadog-demo-app
+        version: v1.0.0
+        tags.datadoghq.com/service: datadog-demo-app
+        tags.datadoghq.com/env: demo
+        tags.datadoghq.com/version: "1.0.0"
+      annotations:
+        ad.datadoghq.com/datadog-demo-app.logs: '[{"source":"nodejs","service":"datadog-demo-app","log_processing_rules":[{"type":"multi_line","name":"log_start_with_date","pattern":"\\d{4}-\\d{2}-\\d{2}"}]}]'
+        ad.datadoghq.com/datadog-demo-app.check_names: '["http_check"]'
+        ad.datadoghq.com/datadog-demo-app.init_configs: '[{}]'
+        ad.datadoghq.com/datadog-demo-app.instances: '[{"name":"datadog-demo-app","url":"http://%%host%%:%%port%%/api/health","timeout":5}]'
+    spec:
+      containers:
+      - name: datadog-demo-app
+        image: datadog-demo-app:latest
+        imagePullPolicy: Never  # For local minikube development
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: PORT
+          value: "3000"
+        - name: DD_AGENT_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: DD_ENTITY_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+        - name: DD_GIT_REPOSITORY_URL
+          value: "https://github.com/eranrh86/datadog-demo-app"
+        - name: DD_GIT_COMMIT_SHA
+          value: "REPLACE_WITH_COMMIT_SHA"
+        envFrom:
+        - configMapRef:
+            name: datadog-demo-config
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/health/live
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/health/ready
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: logs
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: datadog-demo-service
+  namespace: datadog-demo
+  labels:
+    app: datadog-demo-app
+    tags.datadoghq.com/service: datadog-demo-app
+    tags.datadoghq.com/env: demo
+    tags.datadoghq.com/version: "1.0.0"
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: 3000
+    nodePort: 30080
+    protocol: TCP
+    name: http
+  selector:
+    app: datadog-demo-app

@@ -1,0 +1,29 @@
+# Datadog Service Configuration
+# Used by Datadog VS Code Extension for Log Annotations
+
+service: datadog-demo-app
+env: demo
+version: "1.0.0"
+
+logs:
+  service: datadog-demo-app
+  enabled: true
+  enableServiceTracking: true
+
+traces:
+  enabled: true
+  service: datadog-demo-app
+
+metrics:
+  enabled: true
+
+# Repository configuration
+repository:
+  name: datadog-demo-app
+  url: http://localhost:3000
+
+
+
+
+
+
