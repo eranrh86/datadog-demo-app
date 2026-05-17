@@ -33,17 +33,17 @@ controller:
           name: datadog-jenkins-secret
           key: api-key
 
-  # Install plugins
+  # Install plugins (no version pins — let update center resolve compatible versions)
   installPlugins:
-    - kubernetes:4285.v50ed5f624918
-    - workflow-aggregator:600.vb_57cdd26fdd7
-    - git:5.7.0
-    - configuration-as-code:1947.v8584e862c3f0
-    - datadog:7.1.2
-    - junit:1297.v6e5f01e9f028
-    - pipeline-stage-view:2.35
-    - blueocean:1.27.16
-    - credentials-binding:681.vf91669a_32e45
+    - kubernetes
+    - workflow-aggregator
+    - git
+    - configuration-as-code
+    - datadog
+    - junit
+    - pipeline-stage-view
+    - credentials-binding
+    - job-dsl
 
   # Disable setup wizard (JCasC handles config)
   numExecutors: 0
@@ -55,7 +55,7 @@ controller:
       datadog-config: |
         unclassified:
           datadogGlobalConfiguration:
-            apiKey: "${DATADOG_API_KEY}"
+            targetApiKey: "${DATADOG_API_KEY}"
             targetHost: "datadog-agent.datadog.svc.cluster.local"
             targetPort: 8125
             targetTraceCollectionPort: 8126
@@ -63,14 +63,11 @@ controller:
             enableCiVisibility: true
             ciInstanceName: "karpenter-demo"
             collectBuildLogs: true
+            collectBuildTraces: true
             emitConfigChangeEvents: true
             emitSecurityEvents: true
             emitSystemEvents: true
-            sendGlobalTag: true
             traceServiceName: "jenkins"
-            hostname: ""
-            refreshDogstatsdClient: false
-            retryLogs: 10
             targetApiURL: "https://api.datadoghq.com/api/"
 
       credentials-config: |
@@ -84,42 +81,6 @@ controller:
                   secret: "${DATADOG_API_KEY}"
                   description: "Datadog API Key"
 
-      jobs-config: |
-        jobs:
-          - script: >
-              pipelineJob('datadog-demo-app') {
-                description('Datadog Demo App - CI Visibility Pipeline')
-                definition {
-                  cpsScm {
-                    scm {
-                      git {
-                        remote {
-                          url('https://github.com/eranrh86/datadog-demo-app.git')
-                        }
-                        branch('*/claude/wizardly-cori')
-                        extensions {
-                          wipeOutWorkspace()
-                        }
-                      }
-                    }
-                    scriptPath('Jenkinsfile')
-                    lightweight(true)
-                  }
-                }
-                triggers {
-                  scm('H/5 * * * *')
-                }
-                properties {
-                  buildDiscarder {
-                    strategy {
-                      logRotator {
-                        numToKeepStr('10')
-                        artifactNumToKeepStr('5')
-                      }
-                    }
-                  }
-                }
-              }
 
 agent:
   enabled: true
