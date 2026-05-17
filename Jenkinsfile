@@ -46,6 +46,8 @@ spec:
     stages {
         stage('Checkout') {
             steps {
+                // Install git (node:20-alpine doesn't include it)
+                sh 'apk add --no-cache git --quiet 2>/dev/null || true'
                 checkout scm
                 script {
                     // Expose GIT_COMMIT for Datadog Jenkins plugin CI Visibility
