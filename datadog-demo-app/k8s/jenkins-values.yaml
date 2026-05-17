@@ -4,8 +4,9 @@ controller:
     tag: "lts"
 
   # Admin credentials
-  adminUser: "admin"
-  adminPassword: "datadog-demo-2026"
+  admin:
+    username: "admin"
+    password: "datadog-demo-2026"
 
   # Expose via LoadBalancer
   serviceType: LoadBalancer
