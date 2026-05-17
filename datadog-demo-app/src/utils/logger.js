@@ -43,13 +43,8 @@ const logFormat = winston.format.combine(
 
 // Create transports array
 const transports = [
-  // Console transport for development
-  new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.colorize(),
-      winston.format.simple()
-    )
-  }),
+  // Console transport — JSON format so Datadog agent can parse stdout
+  new winston.transports.Console(),
   
   // File transport for production logs
   new winston.transports.File({

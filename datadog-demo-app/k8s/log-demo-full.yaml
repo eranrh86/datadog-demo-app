@@ -1,0 +1,226 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: datadog-demo
+  labels:
+    name: datadog-demo
+
+---
+# Datadog Demo App — clones from GitHub at startup (no image build required)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datadog-demo-app
+  namespace: datadog-demo
+  labels:
+    app: datadog-demo-app
+    tags.datadoghq.com/service: datadog-demo-app
+    tags.datadoghq.com/env: demo
+    tags.datadoghq.com/version: "1.0.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: datadog-demo-app
+  template:
+    metadata:
+      labels:
+        app: datadog-demo-app
+        tags.datadoghq.com/service: datadog-demo-app
+        tags.datadoghq.com/env: demo
+        tags.datadoghq.com/version: "1.0.0"
+      annotations:
+        ad.datadoghq.com/datadog-demo-app.logs: |
+          [{"source":"nodejs","service":"datadog-demo-app"}]
+    spec:
+      initContainers:
+      - name: git-clone
+        image: alpine/git:latest
+        command:
+        - git
+        - clone
+        - --depth=1
+        - --branch=claude/wizardly-cori
+        - https://github.com/eranrh86/datadog-demo-app.git
+        - /app
+        volumeMounts:
+        - name: app-code
+          mountPath: /app
+
+      containers:
+      - name: datadog-demo-app
+        image: node:18-alpine
+        workingDir: /app/datadog-demo-app
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          npm ci --only=production && node src/app.js
+        ports:
+        - containerPort: 3000
+        env:
+        - name: PORT
+          value: "3000"
+        - name: NODE_ENV
+          value: "demo"
+        - name: DD_SERVICE
+          value: "datadog-demo-app"
+        - name: DD_ENV
+          value: "demo"
+        - name: DD_VERSION
+          value: "1.0.0"
+        - name: DD_AGENT_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: DD_TRACE_AGENT_PORT
+          value: "8126"
+        - name: DD_LOGS_INJECTION
+          value: "true"
+        - name: DD_RUNTIME_METRICS_ENABLED
+          value: "true"
+        - name: DD_GIT_REPOSITORY_URL
+          value: "https://github.com/eranrh86/datadog-demo-app"
+        - name: LOG_LEVEL
+          value: "info"
+        - name: DD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: datadog-secret
+              key: api-key
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        readinessProbe:
+          httpGet:
+            path: /api/health/ready
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        volumeMounts:
+        - name: app-code
+          mountPath: /app
+        - name: logs
+          mountPath: /app/datadog-demo-app/logs
+
+      volumes:
+      - name: app-code
+        emptyDir: {}
+      - name: logs
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: datadog-demo-app
+  namespace: datadog-demo
+spec:
+  selector:
+    app: datadog-demo-app
+  ports:
+  - port: 80
+    targetPort: 3000
+  type: ClusterIP
+
+---
+# Traffic Generator — hits all endpoints including error ones for rich log patterns
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic-generator
+  namespace: datadog-demo
+  labels:
+    app: traffic-generator
+    tags.datadoghq.com/service: traffic-generator
+    tags.datadoghq.com/env: demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traffic-generator
+  template:
+    metadata:
+      labels:
+        app: traffic-generator
+        tags.datadoghq.com/service: traffic-generator
+        tags.datadoghq.com/env: demo
+    spec:
+      containers:
+      - name: traffic-generator
+        image: curlimages/curl:latest
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          APP="http://datadog-demo-app.datadog-demo.svc.cluster.local"
+          echo "Starting traffic generator..."
+
+          # Wait for app to be ready
+          until curl -sf "$APP/api/health/live" > /dev/null 2>&1; do
+            echo "Waiting for app..."
+            sleep 5
+          done
+          echo "App is ready, starting traffic..."
+
+          while true; do
+            # === NORMAL TRAFFIC (high volume for baseline) ===
+            for i in $(seq 1 15); do
+              curl -sf "$APP/api/users" > /dev/null 2>&1
+              curl -sf "$APP/api/orders" > /dev/null 2>&1
+              curl -sf "$APP/api/users/1" > /dev/null 2>&1
+              curl -sf "$APP/api/orders/1" > /dev/null 2>&1
+              curl -sf "$APP/api/orders/user/1" > /dev/null 2>&1
+              curl -sf "$APP/" > /dev/null 2>&1
+            done
+
+            # === USER CREATION (medium volume) ===
+            for i in $(seq 1 3); do
+              curl -sf -X POST "$APP/api/users" \
+                -H "Content-Type: application/json" \
+                -d "{\"name\":\"User $RANDOM\",\"email\":\"user$RANDOM@example.com\",\"role\":\"user\"}" \
+                > /dev/null 2>&1
+              curl -sf -X POST "$APP/api/orders" \
+                -H "Content-Type: application/json" \
+                -d "{\"userId\":1,\"product\":\"Product $RANDOM\",\"amount\":$(( RANDOM % 500 + 10 ))}" \
+                > /dev/null 2>&1
+            done
+
+            # === ERROR PATTERNS (for anomaly detection + log insights) ===
+            # 404 errors
+            curl -sf "$APP/api/users/9999" > /dev/null 2>&1
+            # 500 errors - intentional
+            curl -sf "$APP/api/orders/666" > /dev/null 2>&1
+            curl -sf "$APP/api/orders/500" > /dev/null 2>&1
+            curl -sf "$APP/api/users/999" > /dev/null 2>&1
+
+            # === HIGH VALUE ORDER (warning logs) ===
+            curl -sf -X POST "$APP/api/orders" \
+              -H "Content-Type: application/json" \
+              -d '{"userId":1,"product":"Expensive Item","amount":1500}' \
+              > /dev/null 2>&1
+
+            # === ANOMALY SPIKE — every ~30 iterations simulate a burst ===
+            RAND=$(( RANDOM % 30 ))
+            if [ "$RAND" -eq 0 ]; then
+              echo "$(date): Simulating error spike for anomaly detection..."
+              for spike in $(seq 1 20); do
+                curl -sf "$APP/api/orders/666" > /dev/null 2>&1 &
+                curl -sf "$APP/api/users/999" > /dev/null 2>&1 &
+                curl -sf "$APP/error/runtime" > /dev/null 2>&1 &
+              done
+              wait
+            fi
+
+            sleep 2
+          done
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "32Mi"
+          limits:
+            cpu: "200m"
+            memory: "64Mi"
