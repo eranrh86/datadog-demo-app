@@ -1,0 +1,148 @@
+controller:
+  # Use LTS image
+  image:
+    tag: "lts"
+
+  # Admin credentials
+  adminUser: "admin"
+  adminPassword: "datadog-demo-2026"
+
+  # Expose via LoadBalancer
+  serviceType: LoadBalancer
+  servicePort: 8080
+
+  # Resource limits suitable for spot nodes
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+
+  # JVM options
+  javaOpts: "-Xms512m -Xmx1g"
+
+  # Mount Datadog API key from K8s secret as env var
+  # (secret created separately via: kubectl create secret)
+  containerEnv:
+    - name: DATADOG_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: datadog-jenkins-secret
+          key: api-key
+
+  # Install plugins
+  installPlugins:
+    - kubernetes:4285.v50ed5f624918
+    - workflow-aggregator:600.vb_57cdd26fdd7
+    - git:5.7.0
+    - configuration-as-code:1947.v8584e862c3f0
+    - datadog:7.1.2
+    - junit:1297.v6e5f01e9f028
+    - pipeline-stage-view:2.35
+    - blueocean:1.27.16
+    - credentials-binding:681.vf91669a_32e45
+
+  # Disable setup wizard (JCasC handles config)
+  numExecutors: 0
+
+  # Jenkins Configuration as Code
+  JCasC:
+    defaultConfig: true
+    configScripts:
+      datadog-config: |
+        unclassified:
+          datadogGlobalConfiguration:
+            apiKey: "${DATADOG_API_KEY}"
+            targetHost: "datadog-agent.datadog.svc.cluster.local"
+            targetPort: 8125
+            targetTraceCollectionPort: 8126
+            reportWith: "DSD"
+            enableCiVisibility: true
+            ciInstanceName: "karpenter-demo"
+            collectBuildLogs: true
+            emitConfigChangeEvents: true
+            emitSecurityEvents: true
+            emitSystemEvents: true
+            sendGlobalTag: true
+            traceServiceName: "jenkins"
+            hostname: ""
+            refreshDogstatsdClient: false
+            retryLogs: 10
+            targetApiURL: "https://api.datadoghq.com/api/"
+
+      credentials-config: |
+        credentials:
+          system:
+            domainCredentials:
+            - credentials:
+              - string:
+                  scope: GLOBAL
+                  id: "datadog-api-key"
+                  secret: "${DATADOG_API_KEY}"
+                  description: "Datadog API Key"
+
+      jobs-config: |
+        jobs:
+          - script: >
+              pipelineJob('datadog-demo-app') {
+                description('Datadog Demo App - CI Visibility Pipeline')
+                definition {
+                  cpsScm {
+                    scm {
+                      git {
+                        remote {
+                          url('https://github.com/eranrh86/datadog-demo-app.git')
+                        }
+                        branch('*/claude/wizardly-cori')
+                        extensions {
+                          wipeOutWorkspace()
+                        }
+                      }
+                    }
+                    scriptPath('Jenkinsfile')
+                    lightweight(true)
+                  }
+                }
+                triggers {
+                  scm('H/5 * * * *')
+                }
+                properties {
+                  buildDiscarder {
+                    strategy {
+                      logRotator {
+                        numToKeepStr('10')
+                        artifactNumToKeepStr('5')
+                      }
+                    }
+                  }
+                }
+              }
+
+agent:
+  enabled: true
+  podName: jenkins-agent
+  customJenkinsLabels:
+    - k8s-agent
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+  namespace: jenkins
+
+persistence:
+  enabled: true
+  size: "8Gi"
+  storageClass: ""
+
+serviceAccount:
+  create: true
+  name: jenkins
+
+rbac:
+  create: true
+  readSecrets: true

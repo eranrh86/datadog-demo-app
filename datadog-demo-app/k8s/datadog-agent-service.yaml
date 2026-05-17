@@ -1,0 +1,23 @@
+---
+# Exposes Datadog agent DaemonSet ports for APM + DogStatsD within the cluster
+# Jenkins plugin sends CI Visibility traces to port 8126
+apiVersion: v1
+kind: Service
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  labels:
+    app: datadog-agent
+spec:
+  selector:
+    app: datadog-agent
+  ports:
+  - name: apm
+    port: 8126
+    targetPort: 8126
+    protocol: TCP
+  - name: dogstatsd
+    port: 8125
+    targetPort: 8125
+    protocol: UDP
+  clusterIP: None   # Headless — picks any agent pod

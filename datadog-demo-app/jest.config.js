@@ -1,5 +1,16 @@
 module.exports = {
   testEnvironment: 'node',
+  reporters: [
+    'default',
+    ['jest-junit', {
+      outputDirectory: 'test-results',
+      outputName: 'results.xml',
+      classNameTemplate: '{classname}',
+      titleTemplate: '{title}',
+      ancestorSeparator: ' > ',
+      usePathForSuiteName: true,
+    }]
+  ],
   testMatch: [
     '**/tests/**/*.test.js',
     '**/__tests__/**/*.js'
