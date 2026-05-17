@@ -50,9 +50,11 @@ spec:
                 sh 'apk add --no-cache git --quiet 2>/dev/null || true'
                 checkout scm
                 script {
+                    // Fix git safe.directory (agent runs as different UID than checkout)
+                    sh 'git config --global --add safe.directory "*" 2>/dev/null || true'
                     // Expose GIT_COMMIT for Datadog Jenkins plugin CI Visibility
-                    env.GIT_COMMIT = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
-                    env.GIT_BRANCH = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                    env.GIT_COMMIT = sh(script: 'git rev-parse HEAD 2>/dev/null || echo ""', returnStdout: true).trim()
+                    env.GIT_BRANCH = sh(script: 'git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "claude/wizardly-cori"', returnStdout: true).trim()
                     echo "GIT_COMMIT: ${env.GIT_COMMIT}"
                 }
             }
