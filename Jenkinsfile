@@ -47,6 +47,12 @@ spec:
         stage('Checkout') {
             steps {
                 checkout scm
+                script {
+                    // Expose GIT_COMMIT for Datadog Jenkins plugin CI Visibility
+                    env.GIT_COMMIT = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
+                    env.GIT_BRANCH = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                    echo "GIT_COMMIT: ${env.GIT_COMMIT}"
+                }
             }
         }
 
